@@ -37,3 +37,6 @@ L'écran OLED utilise l'adresse I²C `0x3C`. Les boutons sont câblés entre le
 GPIO et GND et utilisent les résistances de tirage internes (`INPUT_PULLUP`).
 Chaque appui est validé après 35 ms stables afin d'éliminer les rebonds
 mécaniques, sans bloquer la boucle principale.
+
+Le dragon exprime son état : joyeux après une action, affamé quand `Food` est
+critique, triste quand `Happy` est critique et malade quand `HP` est critique.

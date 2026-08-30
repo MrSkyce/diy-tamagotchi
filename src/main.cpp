@@ -23,6 +23,12 @@ enum MenuItem { MENU_FOOD, MENU_PLAY, MENU_STATUS };
 MenuItem selectedMenu = MENU_FOOD;
 constexpr int MENU_COUNT = 3;
 
+enum CreatureExpression {
+  EXPRESSION_AUTO,
+  EXPRESSION_HAPPY,
+  EXPRESSION_SLEEPING,
+};
+
 struct Button {
   uint8_t pin;
   bool stableState = HIGH;
@@ -170,9 +176,14 @@ void drawHeader(const char* rightText) {
   display.print(rightText);
 }
 
-void drawCreature(int x, int y, bool blink = false) {
+void drawCreature(int x, int y, bool blink = false,
+                  CreatureExpression expression = EXPRESSION_AUTO) {
   const unsigned char* sprite;
-  if (pet.health < 30 || pet.hunger < 25 || pet.happiness < 25) sprite = dragon_sad;
+  if (expression == EXPRESSION_HAPPY) sprite = dragon_happy;
+  else if (expression == EXPRESSION_SLEEPING) sprite = dragon_sleeping;
+  else if (pet.health < 30) sprite = dragon_sick;
+  else if (pet.hunger < 25) sprite = dragon_hungry;
+  else if (pet.happiness < 25) sprite = dragon_sad;
   else if (blink) sprite = dragon_blink;
   else if (idleFrame) sprite = dragon_idle2;
   else sprite = dragon_idle1;
@@ -292,7 +303,7 @@ void drawMainScreen() {
 void drawFoodScreen() {
   display.clearDisplay();
   drawHeader("FOOD");
-  drawCreature(52, 20, false);
+  drawCreature(52, 20, false, EXPRESSION_HAPPY);
   display.setTextSize(1);
   display.setCursor(35, 53);
   display.print("Nom nom!");
@@ -302,7 +313,7 @@ void drawFoodScreen() {
 void drawPlayScreen() {
   display.clearDisplay();
   drawHeader("PLAY");
-  drawCreature(52, 18, false);
+  drawCreature(52, 18, false, EXPRESSION_HAPPY);
   display.setTextSize(1);
   display.setCursor(43, 53);
   display.print("Wheee!");
