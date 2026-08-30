@@ -70,18 +70,21 @@ après les actions et actualisée périodiquement pour limiter l'usure de la fla
 
 ## Veille profonde (test)
 
-Après 30 secondes sans appui, le prototype sauvegarde le dragon, affiche
+Après 60 secondes sans appui, le prototype sauvegarde le dragon, affiche
 `SLEEP`, éteint l'OLED et entre en deep sleep. Le bouton OK (GPIO3) réveille la
 carte. Cette durée courte sert aux tests ; elle sera ajustée pour l'usage sur
 batterie.
 
 ## Cycle de vie
 
-Le dragon commence dans un œuf : sélectionnez `FD` trois fois pour le réchauffer
-et le faire éclore. Il devient ensuite bébé, jeune après cinq minutes, puis adulte
+Le dragon commence dans un œuf : sélectionnez `FD` avec gauche/droite puis appuyez
+trois fois sur `OK` pour le réchauffer et le faire éclore. Il devient ensuite bébé, jeune après cinq minutes, puis adulte
 quinze minutes plus tard. Ces délais courts sont destinés à la validation sur le
 prototype. Durant le stade œuf, les autres actions indiquent de le réchauffer ;
 pour un bébé, `FD` et `PL` sont affichés comme `MILK` et `CUDDLE`.
+
+Maintenez les boutons gauche et droite simultanément pendant cinq secondes pour
+effacer la sauvegarde NVS et recréer un nouvel œuf.
 
 ### Sprites BMP
 

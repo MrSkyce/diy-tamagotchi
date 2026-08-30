@@ -157,6 +157,7 @@ bool hatchedThisAction = false;
 bool savePending = false;
 unsigned long saveRequestedAt = 0;
 unsigned long lastPetSaveAt = 0;
+unsigned long resetChordStartedAt = 0;
 
 int clampStat(int value) {
   if (value < 0) return 0;
@@ -401,8 +402,7 @@ void drawBootHello() {
   }
   display.setTextSize(1);
   if (pet.lifeStage == STAGE_EGG) {
-    display.setCursor(28, 56);
-    display.print("Keep me warm!");
+    drawCenteredText("OK: WARM ME", 56);
   } else {
     display.setCursor(petRestored ? 28 : 44, 56);
     display.print(petRestored ? "Welcome back!" : "Hello!");
@@ -522,16 +522,17 @@ void updateBootAnimation() {
 
 void drawMainScreen() {
   display.clearDisplay();
+  drawMainMenu();
+  if (pet.lifeStage == STAGE_EGG ||
+      millis() - menuTitleShownAt < MENU_TITLE_DURATION) {
+    drawMenuTitle(selectedMenu);
+  }
   if (pet.lifeStage == STAGE_EGG) {
-    display.drawBitmap(52, 18, egg_roll_01, EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT,
+    display.drawBitmap(52, 26, egg_roll_01, EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT,
                        SSD1306_WHITE);
     display.setTextSize(1);
-    drawCenteredText("FD: WARM ME", 52);
+    drawCenteredText("FD TO WARM", 54);
   } else {
-    drawMainMenu();
-    if (millis() - menuTitleShownAt < MENU_TITLE_DURATION) {
-      drawMenuTitle(selectedMenu);
-    }
     drawCreature(creatureX, 24, creatureBlink, EXPRESSION_AUTO, true);
   }
   display.display();
@@ -540,16 +541,21 @@ void drawMainScreen() {
 void drawFoodScreen() {
   display.clearDisplay();
   if (pet.lifeStage == STAGE_EGG || hatchedThisAction) {
+    drawMainMenu();
     display.drawBitmap(52, 24, hatchedThisAction ? egg_cracked : egg_roll_01,
                        EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT, SSD1306_WHITE);
     display.setTextSize(1);
     if (hatchedThisAction) drawCenteredText("HATCHED!", 16);
     else {
       display.setCursor(38, 52);
-      display.print("WARM ");
-      display.print(pet.warmth);
-      display.print('/');
-      display.print(EGG_WARMTH_REQUIRED);
+      if (selectedMenu == MENU_FOOD) {
+        display.print("WARM ");
+        display.print(pet.warmth);
+        display.print('/');
+        display.print(EGG_WARMTH_REQUIRED);
+      } else {
+        display.print("FD: WARM FIRST");
+      }
     }
     display.display();
     return;
@@ -858,6 +864,35 @@ bool buttonPressed(Button& button, unsigned long now) {
   return button.stableState == LOW;
 }
 
+bool handleResetChord(unsigned long now) {
+  const bool chordHeld = leftButton.stableState == LOW &&
+                         rightButton.stableState == LOW;
+  if (!chordHeld) {
+    resetChordStartedAt = 0;
+    return false;
+  }
+
+  lastUserActivityAt = now;
+  if (resetChordStartedAt == 0) {
+    resetChordStartedAt = now;
+    return true;
+  }
+  if (now - resetChordStartedAt < PET_RESET_HOLD_INTERVAL) return true;
+
+  Serial.println("Reset chord accepted");
+  if (!clearPetSave()) {
+    Serial.println("Pet reset failed");
+    resetChordStartedAt = now;
+    return true;
+  }
+
+  noTone(BUZZER_PIN);
+  Serial.println("Pet save cleared; restarting");
+  Serial.flush();
+  esp_restart();
+  return true;
+}
+
 void handleButtons() {
   const unsigned long now = millis();
   const bool leftPressed = buttonPressed(leftButton, now);
@@ -865,6 +900,7 @@ void handleButtons() {
   const bool rightPressed = buttonPressed(rightButton, now);
 
   if (leftPressed || okPressed || rightPressed) lastUserActivityAt = now;
+  if (handleResetChord(now)) return;
 
   if (currentScreen == SCREEN_MAIN) {
     if (leftPressed) {

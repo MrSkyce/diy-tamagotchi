@@ -22,9 +22,10 @@ constexpr unsigned long BUTTON_DEBOUNCE_INTERVAL = 35;
 
 constexpr unsigned long PET_SAVE_DEBOUNCE_INTERVAL = 3000;
 constexpr unsigned long PET_SAVE_CHECKPOINT_INTERVAL = 300000;
+constexpr unsigned long PET_RESET_HOLD_INTERVAL = 5000;
 constexpr unsigned long ACTION_SCREEN_DURATION = 1500;
 constexpr unsigned long STATUS_SCREEN_DURATION = 4000;
 
 // Valeurs courtes pour valider la veille sur le prototype ; à augmenter pour la batterie.
-constexpr unsigned long INACTIVITY_SLEEP_INTERVAL = 30000;
+constexpr unsigned long INACTIVITY_SLEEP_INTERVAL = 60000;
 constexpr unsigned long SLEEP_NOTICE_DURATION = 1000;
