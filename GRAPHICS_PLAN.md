@@ -8,7 +8,7 @@ dragon bénéficie de toute la zone bleue.
 
 | Zone physique OLED | Coordonnées | Usage prévu |
 |---|---:|---|
-| Jaune | `y = 0..15` | Menu FOOD / PLAY / STAT et sélection |
+| Jaune | `y = 0..15` | Menu compact FD / PL / MD / CL / SL / ST |
 | Bleue | `y = 16..63` | Dragon, animations et messages contextuels |
 
 La zone bleue mesure 128×48 px. Les premiers sprites viseront 32×32 px, mais
@@ -49,16 +49,16 @@ graphique dans une revue Git.
 3. **Fait —** tester le cadrage 40×40 avec les BMP migrés, puis redessiner
    les sprites avec des silhouettes originales et détourées : idle, blink,
    happy, hungry, sad, sick et sleeping.
-4. **En cours —** ajouter et revoir sur l'OLED réelle les frames de marche du
+4. **Fait —** ajouter et revoir sur l'OLED réelle les frames de marche du
    dragon (deux poses par direction) et les quatre poses de rotation de l'œuf :
    contraste, centrage, lisibilité à distance et fluidité.
 
 Le dragon 40×40 se promène entre les marges de la zone bleue, avec un
 déplacement d'un pixel toutes les 120 ms. Les frames `dragon_walk_left_01/02`
 et `dragon_walk_right_01/02` alternent les pattes selon son sens de marche.
-Pour préparer l'ajout d'actions, chaque entrée du menu jaune est limitée à
-deux lettres (`FD`, `PL`, `ST`) ; sur l'écran principal, son nom complet est
-centré sur la première ligne bleue. Le dragon commence donc à `y = 24`.
+Chaque entrée du menu jaune est limitée à deux lettres (`FD`, `PL`, `MD`,
+`CL`, `SL`, `ST`) ; sur l'écran principal, son nom complet est centré une
+seconde dans la première ligne bleue. Le dragon commence donc à `y = 24`.
 
 Les messages d'action sont placés dans les marges latérales bleues afin que le
 dragon conserve la même ligne de sol sur l'écran principal, FOOD et PLAY.

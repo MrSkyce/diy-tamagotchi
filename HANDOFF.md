@@ -12,8 +12,13 @@ Le prototype matériel est **fonctionnel et validé** :
 - moteur de stats OK
 - animation idle/clignement OK
 - boot animation œuf → naissance OK
+- persistance NVS v3 rétrocompatible OK
+- deep sleep sur inactivité et réveil OK
+- animations et six actions de soin OK
 
-Le code actuel reste volontairement monolithique dans un seul `.ino` afin de rester facile à flasher depuis Arduino IDE. La reprise dans Codex doit d'abord **préserver le comportement actuel**, puis refactorer par petites étapes.
+Le firmware courant est un projet PlatformIO : `src/main.cpp` porte la boucle
+de jeu et `src/persistence.cpp` isole la sauvegarde NVS. Le sketch `.ino` est
+uniquement conservé comme référence historique.
 
 ## Matériel actuel
 
@@ -58,9 +63,12 @@ Les boutons sont câblés **GPIO → bouton → GND** avec `INPUT_PULLUP`.
 
 ### UI
 Menu principal :
-- `FOOD`
-- `PLAY`
-- `STAT`
+- `FD` / FOOD
+- `PL` / PLAY
+- `MD` / MEDICINE
+- `CL` / CLEAN
+- `SL` / SLEEP
+- `ST` / STATUS
 
 Contrôles :
 - A = précédent
@@ -74,6 +82,11 @@ struct Pet {
   int hunger;
   int happiness;
   int health;
+  int cleanliness;
+  int fatigue;
+  uint8_t appetite;
+  uint8_t playfulness;
+  uint8_t stubbornness;
   unsigned long birthTime;
 };
 ```
@@ -81,23 +94,23 @@ struct Pet {
 Stats 0..100.
 
 Comportement actuel :
-- hunger baisse périodiquement
-- happiness baisse périodiquement
-- health baisse si hunger ou happiness sont critiques
-- FOOD augmente hunger
-- PLAY augmente happiness et consomme un peu de hunger
-- STAT affiche hunger, happiness, health, age
+- hunger, happiness, cleanliness et fatigue baissent ou montent périodiquement
+- health baisse si hunger, happiness ou cleanliness sont critiques
+- FOOD, PLAY, MEDICINE, CLEAN et SLEEP ont des animations et sons dédiés
+- les traits appétit, joueur et têtu modulent les besoins et le sommeil
+- STATUS affiche les six jauges utiles et l'âge
 
 Timings de développement volontairement courts :
 - hunger : 10 s
 - happiness : 15 s
 - health : 12 s
+- cleanliness : 20 s
+- fatigue : 15 s
 
 ### Animation
-- deux frames idle
-- blink automatique
-- sprite triste si stat critique
-- léger mouvement horizontal
+- marche animée dans les deux sens, blink et expressions d'état
+- FOOD, PLAY, MEDICINE, CLEAN, SLEEP et refus de sommeil animés
+- œuf roulant, éclatement en trois frames et mélodie de naissance
 
 ### Machine à états
 
@@ -106,6 +119,9 @@ enum ScreenState {
   SCREEN_MAIN,
   SCREEN_FOOD,
   SCREEN_PLAY,
+  SCREEN_MEDICINE,
+  SCREEN_CLEAN,
+  SCREEN_REST,
   SCREEN_STATUS
 };
 ```
@@ -126,15 +142,11 @@ void loop() {
 
 Le personnage doit être un **petit dragon mignon de type mascotte arcade**, inspiré de l'esprit des petits dragons de jeux de puzzle rétro, sans copier un personnage existant.
 
-Le projet est passé aux **sprites bitmap 24×24** car le dessin procédural donnait un rendu trop inquiétant.
+Le projet utilise des sprites BMP 1-bit : dragon détouré en **40×40** et œuf
+de démarrage en **24×24**. Ils sont précompilés en tableaux `PROGMEM`.
 
-Sprites existants :
-- `dragon_idle1`
-- `dragon_idle2`
-- `dragon_blink`
-- `dragon_sad`
-
-Ils sont provisoires et peuvent être redessinés.
+Les BMP source dans `assets/sprites/` restent la source de vérité ; le script
+`tools/generate_sprites.py` régénère le header à chaque build.
 
 Direction souhaitée :
 - grosse tête
@@ -147,8 +159,10 @@ Direction souhaitée :
 
 ## Points faibles connus
 
-### Code monolithique
-Refactor recommandé après baseline compilable :
+### Architecture à faire évoluer
+Le noyau est volontairement compact (`main.cpp` et `persistence.cpp`). Un
+refactor en modules ne devient utile que lorsque le cycle de vie ajoute une
+complexité réelle :
 
 ```text
 src/
@@ -166,16 +180,18 @@ include/
   sprites.h
 ```
 
-### `delay()` encore présents
-Les sons et le boot utilisent encore des `delay()`.
-Objectif futur : séquenceur audio et animations non bloquants.
+### Boucle non bloquante
+Les sons, l'œuf, les animations et les délais d'écran utilisent déjà des
+machines à états et des timers. Préserver cette propriété dans les futurs
+évolutions.
 
-### Debounce minimal
-La détection de front fonctionne, mais il n'y a pas de vrai debounce temporisé.
+### Boutons
+Le debounce temporisé est validé. Les nouvelles interactions doivent conserver
+la navigation A / OK / C actuelle.
 
-### Pas de persistance
-Reset = nouveau Tamagotchi.
-Prévoir NVS / `Preferences` plus tard.
+### Persistance et temps réel
+La NVS v3 sauvegarde les stats et les traits. Le temps hors alimentation n'est
+pas encore décompté : c'est le principal manque avant un sommeil long réaliste.
 
 ### Pas de temps réel hors alimentation
 L'âge et les timers reposent sur `millis()`.
@@ -185,70 +201,22 @@ Prévoir deep sleep + calcul du temps écoulé au réveil, éventuellement RTC e
 Matériel prévu : LiPo ~500 mAh.
 Objectifs : extinction OLED, deep sleep, réveil bouton/timer, faible consommation.
 
-## Roadmap suggérée
+## État et roadmap
 
-### Prochain incrément — actions de soin
+**Fait et validé sur la carte :** refactor PlatformIO, debounce, audio
+non bloquant, sprites BMP, animation de naissance, persistance NVS v3,
+deep sleep, six actions et personnalité légère.
 
-Le menu compact peut accueillir six entrées, chacune limitée à deux lettres
-dans la bande jaune et explicitée dans la première ligne bleue. L'objectif est
-de conserver les actions existantes puis d'ajouter progressivement :
-
-1. `FD` / **FOOD** : nourrir le dragon (déjà disponible).
-2. `PL` / **PLAY** : jouer avec lui (déjà disponible).
-3. `MD` / **MEDICINE** : soigner une santé dégradée, avec un retour si le
-   médicament n'est pas nécessaire.
-4. `CL` / **CLEAN** : ajouter une jauge d'hygiène, la faire décroître et la
-   restaurer par le nettoyage.
-5. `SL` / **SLEEP** : offrir un repos au dragon, distinct de la veille
-   profonde technique de la carte.
-6. `ST` / **STATUS** : consulter les jauges, y compris l'hygiène.
-
-Chaque nouvelle action doit recevoir une animation BMP, un effet sonore, une
-durée d'affichage lisible et une vérification sur l'OLED réelle. Le cycle de
-vie œuf → adulte viendra ensuite faire évoluer cette liste selon l'âge.
-
-### Palier suivant — fatigue et personnalité
-
-La fatigue est une jauge persistée de `0` à `100` : elle augmente de 1 toutes
-les 15 secondes éveillé et PLAY l'augmente encore. Trois traits persistés,
-codés de `0` à `2`, suffisent pour donner du caractère sans encombrer l'écran :
-
-- `appetite` ajuste le gain de FOOD (`+15`, `+20`, `+25`) ;
-- `playfulness` ajuste le gain de bonheur et la fatigue de PLAY ;
-- `stubbornness` fixe le seuil d'acceptation de SLEEP (`50`, `65`, `80`).
-
-SLEEP devient une demande de coucher : sous son seuil, le dragon répond
-`NOT TIRED!` — ou `ONE MORE!` s'il est têtu — sans effet sur les jauges. Au
-dessus, il fait une courte sieste animée : `-50` fatigue, `+3` bonheur et `-1`
-faim. Ce sommeil de jeu reste séparé du deep sleep technique de l'ESP32.
-
-1. **V0.4 refactor sans changement fonctionnel**
-   - PlatformIO ou Arduino CLI
-   - `platformio.ini`
-   - `src/main.cpp`
-   - pinout dans `config.h`
-   - sprites dans `sprites.h`
-   - README de build
-2. Debounce propre / abstraction boutons
-3. Audio non bloquant
-4. **Incrément graphique BMP (prochain)**
-   - déplacer le menu dans la bande jaune pour libérer la zone bleue 128×48
-   - établir `assets/sprites/*.bmp` comme source de vérité des sprites
-   - précompiler les BMP en tableaux `PROGMEM` avec un script sans dépendance
-   - redessiner un dragon original : idle, blink, happy, hungry, sad, sick,
-     sleeping
-   - suivre le détail dans `GRAPHICS_PLAN.md`
-5. Moteur Tamagotchi plus riche : cleanliness, fatigue, weight, évolution
-6. Cycle de vie : œuf → bébé → jeune → adulte
-   - Le jeu pourra commencer à l'état œuf : il ne se nourrit pas encore, mais
-     doit être réchauffé par une interaction dédiée.
-   - Les interactions disponibles pourront évoluer avec l'âge du dragon.
-7. Persistance NVS versionnée
-8. Deep sleep + temps écoulé
-9. Batterie / indicateur / économie d'énergie
-10. PCB custom et boîtier imprimé 3D
-11. Explorer le Bluetooth de l'ESP32 pour permettre à deux dragons proches
-    d'échanger ou de « discuter ».
+1. **Prochain incrément — cycle de vie.** Œuf → bébé → jeune → adulte ; l'œuf
+   est réchauffé, puis les actions se transforment selon l'âge.
+2. **Temps réel hors alimentation.** Mesurer le temps de sommeil pour que
+   l'âge, la fatigue et les besoins continuent d'évoluer en deep sleep.
+3. **Équilibrage.** Revoir les seuils, les gains et les traits après usage
+   réel avec l'enfant.
+4. **Énergie.** Ajouter la LiPo, son indicateur et ajuster l'inactivité.
+5. **Social.** Explorer le Bluetooth de l'ESP32 pour permettre à deux dragons
+   proches d'échanger ou de « discuter ».
+6. **Matériel final.** PCB et boîtier imprimé 3D.
 
 ## Contraintes de reprise
 
@@ -259,19 +227,9 @@ faim. Ce sommeil de jeu reste séparé du deep sleep technique de l'ESP32.
 5. Éviter les abstractions lourdes et dépendances inutiles.
 6. Favoriser machines à états et timers non bloquants.
 7. Garder les sprites modifiables indépendamment du moteur.
-8. Préparer l'architecture à NVS et deep sleep.
-
-## Premier objectif recommandé pour Codex
-
-Créer une **V0.4 refactorée sans changement fonctionnel** :
-- convertir en projet PlatformIO
-- compiler pour ESP32-C3
-- extraire config et sprites
-- conserver boot, boutons, menu, sons, stats, animation
-- ajouter README et commandes de build/flash
-
-Une fois cette baseline compilable validée, évoluer incrémentalement.
+8. Conserver la compatibilité des sauvegardes NVS lors de chaque évolution.
 
 ## Source de référence
 
-`TamagotchiESP32C3.ino` correspond au dernier état logiciel préparé à partir du prototype fonctionnel validé.
+`TamagotchiESP32C3.ino` est une référence Arduino V0.3 historique ; le code
+actif et validé est le projet PlatformIO.

@@ -4,7 +4,7 @@ Prototype de Tamagotchi DIY basé sur ESP32-C3, OLED 128×64, trois boutons et b
 Le firmware affiche actuellement la version `v0.5` dans le coin supérieur droit
 des écrans de transition.
 
-## V0.4 : projet PlatformIO
+## V0.5 : firmware actuel
 
 Le projet PlatformIO est compilable pour `esp32-c3-devkitm-1`, l'équivalent
 PlatformIO retenu pour la configuration Arduino validée `ESP32C3 Dev Module`.
@@ -43,16 +43,26 @@ GPIO et GND et utilisent les résistances de tirage internes (`INPUT_PULLUP`).
 Chaque appui est validé après 35 ms stables afin d'éliminer les rebonds
 mécaniques, sans bloquer la boucle principale.
 
-Le dragon exprime son état : joyeux après une action, affamé quand `Food` est
-critique, triste quand `Happy` est critique et malade quand `HP` est critique.
+Le menu jaune compact expose `FD`, `PL`, `MD`, `CL`, `SL` et `ST`. Le nom
+complet de l'action sélectionnée s'affiche une seconde dans la première ligne
+bleue. Le dragon exprime aussi la fatigue, la faim, la tristesse et la maladie.
+
+## Actions et stats
+
+- `FD` / FOOD : nourrit le dragon ; son trait d'appétit ajuste le gain.
+- `PL` / PLAY : améliore le bonheur, mais augmente la fatigue selon son trait
+  joueur.
+- `MD` / MEDICINE : soigne lorsque les HP sont bas.
+- `CL` / CLEAN : restaure l'hygiène ; une hygiène critique pénalise les HP.
+- `SL` / SLEEP : demande une sieste. Un dragon têtu peut répondre `ONE MORE!`.
+- `ST` / STATUS : affiche Food, Happy, HP, Clean, Fatigue et âge.
 
 ## Persistance
 
-Les stats et l'âge du dragon sont sauvegardés dans la mémoire NVS interne de
-l'ESP32. La sauvegarde est versionnée et vérifiée avant restauration. Elle est
-regroupée après les actions et actualisée périodiquement pour limiter l'usure
-de la flash. Le temps hors alimentation n'est pas encore compté : cette étape
-sera traitée avec le deep sleep et une source de temps adaptée.
+Les stats, l'âge, l'hygiène, la fatigue et les trois traits de personnalité
+sont sauvegardés dans la mémoire NVS interne de l'ESP32. La sauvegarde v3 est
+vérifiée et migre les sauvegardes v1 et v2 existantes. Elle est regroupée après
+les actions et actualisée périodiquement pour limiter l'usure de la flash.
 
 ## Veille profonde (test)
 
@@ -61,11 +71,11 @@ Après 30 secondes sans appui, le prototype sauvegarde le dragon, affiche
 carte. Cette durée courte sert aux tests ; elle sera ajustée pour l'usage sur
 batterie.
 
-## Prochain incrément graphique
+## Prochaine étape
 
-Le menu sera déplacé dans la bande jaune (`y = 0..15`) afin de réserver la
-zone bleue 128×48 au dragon. Les futurs sprites seront des BMP noir et blanc
-précompilés en tableaux `PROGMEM`. Voir [GRAPHICS_PLAN.md](GRAPHICS_PLAN.md).
+Le prochain incrément est le cycle de vie `œuf → bébé → jeune → adulte` : l'œuf
+sera réchauffé plutôt que nourri et les actions évolueront avec l'âge. Le
+Bluetooth entre dragons reste une piste ultérieure. Voir [HANDOFF.md](HANDOFF.md).
 
 ### Sprites BMP
 
