@@ -43,12 +43,18 @@ graphique dans une revue Git.
 1. **Fait —** déplacer le menu principal dans la bande jaune et réserver la
    zone bleue au contenu ; préserver les trois boutons et les écrans
    FOOD/PLAY/STAT.
-2. Ajouter le répertoire d'assets, le convertisseur pré-build PlatformIO et un
-   BMP de test ; compiler pour vérifier la génération reproductible.
-3. Remplacer les bitmaps codés à la main par des BMP originaux : idle, blink,
+2. **Fait —** ajouter le répertoire d'assets, le convertisseur pré-build
+   PlatformIO et migrer les sprites existants ; compiler pour vérifier la
+   génération reproductible.
+3. **En cours —** tester le cadrage 40×40 avec les BMP migrés, puis redessiner
+   les sprites avec des silhouettes originales et détourées : idle, blink,
    happy, hungry, sad, sick et sleeping.
 4. Ajouter les frames d'animation supplémentaires seulement après revue sur
    l'OLED réelle : contraste, centrage, lisibilité à distance et fluidité.
+
+Le prototype 40×40 se promène actuellement entre les marges de la zone bleue,
+avec un déplacement d'un pixel toutes les 120 ms. Les prochaines frames
+pourront transformer ce déplacement en marche plus caractérisée.
 5. Documenter l'export des BMP et la convention de nommage dans le README.
 
 ## Validation

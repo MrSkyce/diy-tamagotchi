@@ -20,7 +20,9 @@ bibliothèques Adafruit déclarées dans `platformio.ini`.
 
 - `src/main.cpp` : comportement applicatif actuel.
 - `include/config.h` : pinout et configuration écran.
-- `include/sprites.h` : sprites 24×24 du dragon.
+- `assets/sprites/` : source de vérité des sprites BMP noir et blanc.
+- `tools/generate_sprites.py` : précompile les BMP en tableaux `PROGMEM`.
+- `include/generated_sprites.h` : bitmaps générés, utilisés par `sprites.h`.
 - `GRAPHICS_PLAN.md` : plan de migration vers des assets BMP précompilés.
 - `TamagotchiESP32C3.ino` : référence Arduino V0.3, conservée pour comparaison.
 - `HANDOFF.md` : contexte et roadmap.
@@ -62,3 +64,11 @@ batterie.
 Le menu sera déplacé dans la bande jaune (`y = 0..15`) afin de réserver la
 zone bleue 128×48 au dragon. Les futurs sprites seront des BMP noir et blanc
 précompilés en tableaux `PROGMEM`. Voir [GRAPHICS_PLAN.md](GRAPHICS_PLAN.md).
+
+### Sprites BMP
+
+Les sprites sont des BMP 1-bit non compressés, tous de même dimension et au
+plus 128×48 px. Un pixel clair est affiché sur l'OLED ; un pixel sombre est
+transparent. Chaque frame d'animation est un fichier distinct, par exemple
+`dragon_idle1.bmp` et `dragon_idle2.bmp`. PlatformIO régénère automatiquement
+`include/generated_sprites.h` avant chaque compilation.

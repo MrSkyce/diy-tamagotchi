@@ -88,11 +88,15 @@ constexpr unsigned long HAPPY_INTERVAL = 15000;
 constexpr unsigned long HEALTH_INTERVAL = 12000;
 
 unsigned long lastAnimTick = 0;
+unsigned long lastMoveTick = 0;
 unsigned long lastBlinkTick = 0;
 constexpr unsigned long ANIM_INTERVAL = 450;
+constexpr unsigned long CREATURE_MOVE_INTERVAL = 120;
 constexpr unsigned long BLINK_INTERVAL = 3500;
 constexpr unsigned long BLINK_DURATION = 140;
-int creatureOffsetX = 0;
+constexpr int CREATURE_MIN_X = 4;
+constexpr int CREATURE_MAX_X = SCREEN_WIDTH - DRAGON_SPRITE_WIDTH - 4;
+int creatureX = (SCREEN_WIDTH - DRAGON_SPRITE_WIDTH) / 2;
 bool creatureMoveRight = true;
 bool creatureBlink = false;
 unsigned long blinkStart = 0;
@@ -288,9 +292,9 @@ void drawBootCrackedEgg() {
 void drawBootHello() {
   display.clearDisplay();
   drawHeader(petRestored ? "BACK" : "HI!");
-  drawCreature(52, 22, false);
+  drawCreature(44, 16, false);
   display.setTextSize(1);
-  display.setCursor(petRestored ? 28 : 44, 55);
+  display.setCursor(petRestored ? 28 : 44, 56);
   display.print(petRestored ? "Welcome back!" : "Hello!");
   display.display();
 }
@@ -298,9 +302,9 @@ void drawBootHello() {
 void drawSleepScreen() {
   display.clearDisplay();
   drawHeader("SLEEP");
-  drawCreature(52, 22, false, EXPRESSION_SLEEPING);
+  drawCreature(44, 16, false, EXPRESSION_SLEEPING);
   display.setTextSize(1);
-  display.setCursor(46, 55);
+  display.setCursor(46, 56);
   display.print("Zzz...");
   display.display();
 }
@@ -398,16 +402,16 @@ void updateBootAnimation() {
 void drawMainScreen() {
   display.clearDisplay();
   drawMainMenu();
-  drawCreature(52 + creatureOffsetX, 28, creatureBlink);
+  drawCreature(creatureX, 20, creatureBlink);
   display.display();
 }
 
 void drawFoodScreen() {
   display.clearDisplay();
   drawMainMenu();
-  drawCreature(52, 20, false, EXPRESSION_HAPPY);
+  drawCreature(44, 16, false, EXPRESSION_HAPPY);
   display.setTextSize(1);
-  display.setCursor(35, 53);
+  display.setCursor(35, 56);
   display.print("Nom nom!");
   display.display();
 }
@@ -415,9 +419,9 @@ void drawFoodScreen() {
 void drawPlayScreen() {
   display.clearDisplay();
   drawMainMenu();
-  drawCreature(52, 18, false, EXPRESSION_HAPPY);
+  drawCreature(44, 16, false, EXPRESSION_HAPPY);
   display.setTextSize(1);
-  display.setCursor(43, 53);
+  display.setCursor(43, 56);
   display.print("Wheee!");
   display.display();
 }
@@ -487,28 +491,34 @@ void updateSimulation() {
 
 void updateCreatureAnimation() {
   unsigned long now = millis();
+  bool redraw = false;
   if (now - lastAnimTick >= ANIM_INTERVAL) {
     lastAnimTick = now;
     idleFrame = !idleFrame;
+    redraw = true;
+  }
+  if (now - lastMoveTick >= CREATURE_MOVE_INTERVAL) {
+    lastMoveTick = now;
     if (creatureMoveRight) {
-      creatureOffsetX++;
-      if (creatureOffsetX >= 3) creatureMoveRight = false;
+      creatureX++;
+      if (creatureX >= CREATURE_MAX_X) creatureMoveRight = false;
     } else {
-      creatureOffsetX--;
-      if (creatureOffsetX <= -3) creatureMoveRight = true;
+      creatureX--;
+      if (creatureX <= CREATURE_MIN_X) creatureMoveRight = true;
     }
-    if (currentScreen == SCREEN_MAIN) drawMainScreen();
+    redraw = true;
   }
   if (!creatureBlink && now - lastBlinkTick >= BLINK_INTERVAL) {
     creatureBlink = true;
     blinkStart = now;
     lastBlinkTick = now;
-    if (currentScreen == SCREEN_MAIN) drawMainScreen();
+    redraw = true;
   }
   if (creatureBlink && now - blinkStart >= BLINK_DURATION) {
     creatureBlink = false;
-    if (currentScreen == SCREEN_MAIN) drawMainScreen();
+    redraw = true;
   }
+  if (redraw && currentScreen == SCREEN_MAIN) drawMainScreen();
 }
 
 void updateScreenState() {
@@ -608,6 +618,7 @@ void setup() {
   lastHappyTick = now;
   lastHealthTick = now;
   lastAnimTick = now;
+  lastMoveTick = now;
   lastBlinkTick = now;
   lastPetSaveAt = now;
   lastUserActivityAt = now;
