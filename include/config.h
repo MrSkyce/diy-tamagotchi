@@ -12,3 +12,5 @@ constexpr uint8_t BTN_OK = 20;
 constexpr uint8_t BTN_RIGHT = 10;
 constexpr uint8_t BUZZER_PIN = 4;
 
+// A press is accepted only after this duration at a stable logic level.
+constexpr unsigned long BUTTON_DEBOUNCE_INTERVAL = 35;

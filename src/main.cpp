@@ -23,9 +23,18 @@ enum MenuItem { MENU_FOOD, MENU_PLAY, MENU_STATUS };
 MenuItem selectedMenu = MENU_FOOD;
 constexpr int MENU_COUNT = 3;
 
-bool lastLeft = HIGH;
-bool lastOk = HIGH;
-bool lastRight = HIGH;
+struct Button {
+  uint8_t pin;
+  bool stableState = HIGH;
+  bool lastReading = HIGH;
+  unsigned long lastTransitionTime = 0;
+
+  explicit Button(uint8_t buttonPin) : pin(buttonPin) {}
+};
+
+Button leftButton{BTN_LEFT};
+Button okButton{BTN_OK};
+Button rightButton{BTN_RIGHT};
 
 unsigned long lastHungerTick = 0;
 unsigned long lastHappyTick = 0;
@@ -259,27 +268,45 @@ void updateScreenState() {
   }
 }
 
+bool buttonPressed(Button& button, unsigned long now) {
+  const bool reading = digitalRead(button.pin);
+
+  if (reading != button.lastReading) {
+    button.lastReading = reading;
+    button.lastTransitionTime = now;
+  }
+
+  if (now - button.lastTransitionTime < BUTTON_DEBOUNCE_INTERVAL ||
+      reading == button.stableState) {
+    return false;
+  }
+
+  button.stableState = reading;
+  return button.stableState == LOW;
+}
+
 void handleButtons() {
-  bool left = digitalRead(BTN_LEFT);
-  bool ok = digitalRead(BTN_OK);
-  bool right = digitalRead(BTN_RIGHT);
+  const unsigned long now = millis();
+  const bool leftPressed = buttonPressed(leftButton, now);
+  const bool okPressed = buttonPressed(okButton, now);
+  const bool rightPressed = buttonPressed(rightButton, now);
 
   if (currentScreen == SCREEN_MAIN) {
-    if (lastLeft == HIGH && left == LOW) {
+    if (leftPressed) {
       soundMenu();
       int menu = static_cast<int>(selectedMenu) - 1;
       if (menu < 0) menu = MENU_COUNT - 1;
       selectedMenu = static_cast<MenuItem>(menu);
       drawMainScreen();
     }
-    if (lastRight == HIGH && right == LOW) {
+    if (rightPressed) {
       soundMenu();
       int menu = static_cast<int>(selectedMenu) + 1;
       if (menu >= MENU_COUNT) menu = 0;
       selectedMenu = static_cast<MenuItem>(menu);
       drawMainScreen();
     }
-    if (lastOk == HIGH && ok == LOW) {
+    if (okPressed) {
       soundOk();
       switch (selectedMenu) {
         case MENU_FOOD: feedPet(); break;
@@ -288,10 +315,6 @@ void handleButtons() {
       }
     }
   }
-
-  lastLeft = left;
-  lastOk = ok;
-  lastRight = right;
 }
 
 void setup() {
@@ -306,8 +329,14 @@ void setup() {
   pinMode(BTN_RIGHT, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
 
+  const unsigned long now = millis();
+  for (Button* button : {&leftButton, &okButton, &rightButton}) {
+    button->stableState = digitalRead(button->pin);
+    button->lastReading = button->stableState;
+    button->lastTransitionTime = now;
+  }
+
   pet.birthTime = millis();
-  unsigned long now = millis();
   lastHungerTick = now;
   lastHappyTick = now;
   lastHealthTick = now;
