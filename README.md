@@ -50,19 +50,23 @@ bleue. Le dragon exprime aussi la fatigue, la faim, la tristesse et la maladie.
 ## Actions et stats
 
 - `FD` / FOOD : nourrit le dragon ; son trait d'appétit ajuste le gain.
-- `PL` / PLAY : améliore le bonheur, mais augmente la fatigue selon son trait
-  joueur.
+- `PL` / PLAY : améliore le bonheur, mais augmente la fatigue et fait perdre
+  5 points d'hygiène.
 - `MD` / MEDICINE : soigne lorsque les HP sont bas.
 - `CL` / CLEAN : restaure l'hygiène ; une hygiène critique pénalise les HP.
 - `SL` / SLEEP : demande une sieste. Un dragon têtu peut répondre `ONE MORE!`.
 - `ST` / STATUS : affiche Food, Happy, HP, Clean, Fatigue et âge.
 
+À partir de 80 de fatigue, le dragon perd un point de bonheur à chaque cycle
+de 15 s et un HP à chaque cycle de santé de 12 s, jusqu'à ce qu'il dorme.
+
 ## Persistance
 
 Les stats, l'âge, l'hygiène, la fatigue et les trois traits de personnalité
-sont sauvegardés dans la mémoire NVS interne de l'ESP32. La sauvegarde v3 est
-vérifiée et migre les sauvegardes v1 et v2 existantes. Elle est regroupée après
-les actions et actualisée périodiquement pour limiter l'usure de la flash.
+sont sauvegardés dans la mémoire NVS interne de l'ESP32. Le schéma NVS `5`
+correspond exactement au firmware `v0.5` : une sauvegarde d'une autre version
+est volontairement ignorée et un nouveau dragon est créé. Elle est regroupée
+après les actions et actualisée périodiquement pour limiter l'usure de la flash.
 
 ## Veille profonde (test)
 

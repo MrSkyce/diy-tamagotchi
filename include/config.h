@@ -14,6 +14,8 @@ constexpr uint8_t BUZZER_PIN = 4;
 
 // Affiche discretement dans le coin droit des ecrans de transition.
 constexpr char FIRMWARE_VERSION[] = "v0.5";
+// Schéma NVS associé à la version affichée v0.5.
+constexpr uint16_t FIRMWARE_SAVE_VERSION = 5;
 
 // A press is accepted only after this duration at a stable logic level.
 constexpr unsigned long BUTTON_DEBOUNCE_INTERVAL = 35;

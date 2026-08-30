@@ -12,7 +12,7 @@ Le prototype matériel est **fonctionnel et validé** :
 - moteur de stats OK
 - animation idle/clignement OK
 - boot animation œuf → naissance OK
-- persistance NVS v3 rétrocompatible OK
+- persistance NVS versionnée avec le firmware OK
 - deep sleep sur inactivité et réveil OK
 - animations et six actions de soin OK
 
@@ -95,8 +95,11 @@ Stats 0..100.
 
 Comportement actuel :
 - hunger, happiness, cleanliness et fatigue baissent ou montent périodiquement
-- health baisse si hunger, happiness ou cleanliness sont critiques
-- FOOD, PLAY, MEDICINE, CLEAN et SLEEP ont des animations et sons dédiés
+- health baisse si hunger, happiness, cleanliness ou fatigue sont critiques ;
+  à partir de 80 de fatigue, bonheur et santé subissent chacun une pénalité
+  supplémentaire à leur cycle
+- PLAY augmente aussi la fatigue, consomme de la faim et retire 5 points
+  d'hygiène ; les actions ont des animations et sons dédiés
 - les traits appétit, joueur et têtu modulent les besoins et le sommeil
 - STATUS affiche les six jauges utiles et l'âge
 
@@ -190,8 +193,9 @@ Le debounce temporisé est validé. Les nouvelles interactions doivent conserver
 la navigation A / OK / C actuelle.
 
 ### Persistance et temps réel
-La NVS v3 sauvegarde les stats et les traits. Le temps hors alimentation n'est
-pas encore décompté : c'est le principal manque avant un sommeil long réaliste.
+La NVS versionnée avec le firmware sauvegarde les stats et les traits. Le temps
+hors alimentation n'est pas encore décompté : c'est le principal manque avant
+un sommeil long réaliste.
 
 ### Pas de temps réel hors alimentation
 L'âge et les timers reposent sur `millis()`.
@@ -204,7 +208,7 @@ Objectifs : extinction OLED, deep sleep, réveil bouton/timer, faible consommati
 ## État et roadmap
 
 **Fait et validé sur la carte :** refactor PlatformIO, debounce, audio
-non bloquant, sprites BMP, animation de naissance, persistance NVS v3,
+non bloquant, sprites BMP, animation de naissance, persistance NVS versionnée,
 deep sleep, six actions et personnalité légère.
 
 1. **Prochain incrément — cycle de vie.** Œuf → bébé → jeune → adulte ; l'œuf
@@ -227,7 +231,8 @@ deep sleep, six actions et personnalité légère.
 5. Éviter les abstractions lourdes et dépendances inutiles.
 6. Favoriser machines à états et timers non bloquants.
 7. Garder les sprites modifiables indépendamment du moteur.
-8. Conserver la compatibilité des sauvegardes NVS lors de chaque évolution.
+8. Incrémenter le schéma NVS avec la version du firmware lors de chaque
+   évolution incompatible.
 
 ## Source de référence
 

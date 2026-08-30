@@ -600,6 +600,7 @@ void playWithPet() {
   pet.happiness = clampStat(pet.happiness + PLAY_HAPPINESS[pet.playfulness]);
   pet.fatigue = clampStat(pet.fatigue + PLAY_FATIGUE[pet.playfulness]);
   pet.hunger = clampStat(pet.hunger - 3);
+  pet.cleanliness = clampStat(pet.cleanliness - 5);
   markPetDirty();
   soundPlay();
   goToScreen(SCREEN_PLAY);
@@ -648,6 +649,7 @@ void updateSimulation() {
   if (now - lastHappyTick >= HAPPY_INTERVAL) {
     lastHappyTick = now;
     pet.happiness = clampStat(pet.happiness - 1);
+    if (pet.fatigue >= 80) pet.happiness = clampStat(pet.happiness - 1);
     petChanged = true;
     Serial.print("Happy: "); Serial.println(pet.happiness);
   }
@@ -668,6 +670,7 @@ void updateSimulation() {
     if (pet.hunger < 25) pet.health--;
     if (pet.happiness < 20) pet.health--;
     if (pet.cleanliness < 25) pet.health--;
+    if (pet.fatigue >= 80) pet.health--;
     pet.health = clampStat(pet.health);
     petChanged = true;
     Serial.print("Health: "); Serial.println(pet.health);
