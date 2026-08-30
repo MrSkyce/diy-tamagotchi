@@ -29,7 +29,7 @@ bibliothèques Adafruit déclarées dans `platformio.ini`.
 - SDA : GPIO0
 - SCL : GPIO1
 - A / Left : GPIO21
-- B / OK : GPIO20
+- B / OK : GPIO3
 - C / Right : GPIO10
 - Buzzer : GPIO4
 
@@ -48,3 +48,10 @@ l'ESP32. La sauvegarde est versionnée et vérifiée avant restauration. Elle es
 regroupée après les actions et actualisée périodiquement pour limiter l'usure
 de la flash. Le temps hors alimentation n'est pas encore compté : cette étape
 sera traitée avec le deep sleep et une source de temps adaptée.
+
+## Veille profonde (test)
+
+Après 30 secondes sans appui, le prototype sauvegarde le dragon, affiche
+`SLEEP`, éteint l'OLED et entre en deep sleep. Le bouton OK (GPIO3) réveille la
+carte. Cette durée courte sert aux tests ; elle sera ajustée pour l'usage sur
+batterie.

@@ -2,6 +2,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <esp_sleep.h>
 
 #include "config.h"
 #include "persistence.h"
@@ -72,6 +73,11 @@ enum BootPhase { BOOT_EGG, BOOT_CRACKED_EGG, BOOT_CLEAR, BOOT_HELLO, BOOT_DONE }
 BootPhase bootPhase = BOOT_EGG;
 unsigned long bootPhaseStartedAt = 0;
 int bootFrame = 0;
+
+enum PowerState { POWER_ACTIVE, POWER_PREPARING_SLEEP };
+PowerState powerState = POWER_ACTIVE;
+unsigned long lastUserActivityAt = 0;
+unsigned long sleepNoticeStartedAt = 0;
 
 unsigned long lastHungerTick = 0;
 unsigned long lastHappyTick = 0;
@@ -275,11 +281,57 @@ void drawBootHello() {
   display.display();
 }
 
+void drawSleepScreen() {
+  display.clearDisplay();
+  drawHeader("SLEEP");
+  drawCreature(52, 22, false, EXPRESSION_SLEEPING);
+  display.setTextSize(1);
+  display.setCursor(46, 55);
+  display.print("Zzz...");
+  display.display();
+}
+
 void startBootAnimation() {
   bootPhase = BOOT_EGG;
   bootPhaseStartedAt = millis();
   bootFrame = 0;
   drawBootEggFrame(bootFrame);
+}
+
+void enterDeepSleep() {
+  saveCurrentPet();
+  display.ssd1306_command(SSD1306_DISPLAYOFF);
+
+  const uint64_t wakePinMask = 1ULL << BTN_OK;
+  const esp_err_t wakeupConfigured = esp_deep_sleep_enable_gpio_wakeup(
+      wakePinMask, ESP_GPIO_WAKEUP_GPIO_LOW);
+  if (wakeupConfigured != ESP_OK) {
+    Serial.println("Deep sleep wake setup failed");
+    display.ssd1306_command(SSD1306_DISPLAYON);
+    powerState = POWER_ACTIVE;
+    lastUserActivityAt = millis();
+    return;
+  }
+
+  Serial.println("Entering deep sleep");
+  Serial.flush();
+  esp_deep_sleep_start();
+}
+
+void updatePowerManagement() {
+  const unsigned long now = millis();
+  if (powerState == POWER_ACTIVE &&
+      now - lastUserActivityAt >= INACTIVITY_SLEEP_INTERVAL) {
+    powerState = POWER_PREPARING_SLEEP;
+    sleepNoticeStartedAt = now;
+    drawSleepScreen();
+    return;
+  }
+
+  if (powerState == POWER_PREPARING_SLEEP &&
+      now - sleepNoticeStartedAt >= SLEEP_NOTICE_DURATION) {
+    enterDeepSleep();
+  }
 }
 
 void updateBootAnimation() {
@@ -320,6 +372,7 @@ void updateBootAnimation() {
     case BOOT_HELLO:
       if (now - bootPhaseStartedAt >= 1340) {
         bootPhase = BOOT_DONE;
+        lastUserActivityAt = now;
         goToScreen(SCREEN_MAIN);
       }
       break;
@@ -481,6 +534,8 @@ void handleButtons() {
   const bool okPressed = buttonPressed(okButton, now);
   const bool rightPressed = buttonPressed(rightButton, now);
 
+  if (leftPressed || okPressed || rightPressed) lastUserActivityAt = now;
+
   if (currentScreen == SCREEN_MAIN) {
     if (leftPressed) {
       soundMenu();
@@ -509,6 +564,7 @@ void handleButtons() {
 
 void setup() {
   Serial.begin(115200);
+  Serial.printf("Wake cause: %d\n", esp_sleep_get_wakeup_cause());
   Wire.begin(SDA_PIN, SCL_PIN);
   if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
     Serial.println("OLED error");
@@ -544,6 +600,7 @@ void setup() {
   lastAnimTick = now;
   lastBlinkTick = now;
   lastPetSaveAt = now;
+  lastUserActivityAt = now;
 
   if (!petRestored) saveCurrentPet();
 
@@ -558,10 +615,16 @@ void loop() {
     delay(5);
     return;
   }
+  if (powerState == POWER_PREPARING_SLEEP) {
+    updatePowerManagement();
+    delay(5);
+    return;
+  }
   updateSimulation();
   updateScreenState();
   updateCreatureAnimation();
   handleButtons();
   updatePersistence();
+  updatePowerManagement();
   delay(5);
 }

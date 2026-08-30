@@ -35,7 +35,7 @@ Le code actuel reste volontairement monolithique dans un seul `.ino` afin de res
 | OLED SDA | 0 |
 | OLED SCL | 1 |
 | Bouton A / gauche | 21 |
-| Bouton B / OK | 20 |
+| Bouton B / OK | 3 |
 | Bouton C / droite | 10 |
 | Buzzer passif | 4 |
 
