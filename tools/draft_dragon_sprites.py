@@ -233,6 +233,61 @@ def sleep_dragon(frame: int) -> Canvas:
     return canvas
 
 
+def tired_dragon(frame: int) -> Canvas:
+    canvas = base_dragon()
+    # Heavy diagonal lids, a small frown and low paws make tiredness legible
+    # without filling the airy dragon silhouette.
+    canvas.line(12, 15, 18, 17)
+    canvas.line(22, 17, 28, 15)
+    canvas.line(15, 18, 17, 18)
+    canvas.line(23, 18, 25, 18)
+    canvas.line(16, 25, 18, 23)
+    canvas.line(18, 23, 22, 23)
+    canvas.line(22, 23, 24, 25)
+    if frame == 0:
+        # One paw hangs from the belly, emphasizing the slumped pose.
+        canvas.line(12, 28, 15, 34)
+        canvas.fill_ellipse(15, 34, 2, 1.3)
+        canvas.line(27, 31, 29, 35)
+        canvas.line(29, 35, 32, 35)
+    else:
+        # The other frame closes the lids further and shifts the weight.
+        canvas.line(12, 16, 18, 18)
+        canvas.line(22, 18, 28, 16)
+        canvas.line(28, 28, 25, 34)
+        canvas.fill_ellipse(25, 34, 2, 1.3)
+        canvas.line(12, 35, 15, 35)
+    return canvas
+
+
+def sleep_refuse_dragon(frame: int) -> Canvas:
+    canvas = base_dragon()
+    open_eyes(canvas)
+    # Firm brows and a flat mouth read as a clear, awake refusal.
+    canvas.line(12, 13, 18, 15)
+    canvas.line(22, 15, 28, 13)
+    canvas.line(16, 24, 24, 24)
+    if frame == 0:
+        # Raised open paw: a compact "no" gesture next to the face.
+        canvas.line(28, 28, 32, 21)
+        canvas.line(32, 21, 35, 21)
+        canvas.line(35, 21, 36, 23)
+        canvas.line(35, 21, 35, 18)
+        canvas.line(33, 21, 33, 18)
+        canvas.line(31, 21, 31, 19)
+        canvas.line(35, 15, 38, 13)
+    else:
+        # The paw moves outwards; two short strokes sell the head/paw shake.
+        canvas.line(28, 28, 34, 24)
+        canvas.line(34, 24, 37, 24)
+        canvas.line(37, 24, 38, 26)
+        canvas.line(36, 24, 36, 21)
+        canvas.line(34, 24, 34, 21)
+        canvas.line(8, 14, 10, 12)
+        canvas.line(8, 18, 10, 20)
+    return canvas
+
+
 def write_bmp(path: Path, canvas: Canvas) -> None:
     row_bytes = ((SIZE + 31) // 32) * 4
     pixel_offset = 14 + 40 + 8
@@ -278,6 +333,8 @@ def main() -> None:
         write_bmp(ASSETS_DIR / f"dragon_medicine_{frame + 1:02}.bmp", medicine_dragon(frame))
         write_bmp(ASSETS_DIR / f"dragon_clean_{frame + 1:02}.bmp", clean_dragon(frame))
         write_bmp(ASSETS_DIR / f"dragon_sleep_{frame + 1:02}.bmp", sleep_dragon(frame))
+        write_bmp(ASSETS_DIR / f"dragon_tired_{frame + 1:02}.bmp", tired_dragon(frame))
+        write_bmp(ASSETS_DIR / f"dragon_sleep_refuse_{frame + 1:02}.bmp", sleep_refuse_dragon(frame))
     print("Generated original outline dragon draft BMP sprites")
 
 

@@ -207,6 +207,21 @@ Chaque nouvelle action doit recevoir une animation BMP, un effet sonore, une
 durée d'affichage lisible et une vérification sur l'OLED réelle. Le cycle de
 vie œuf → adulte viendra ensuite faire évoluer cette liste selon l'âge.
 
+### Palier suivant — fatigue et personnalité
+
+La fatigue est une jauge persistée de `0` à `100` : elle augmente de 1 toutes
+les 15 secondes éveillé et PLAY l'augmente encore. Trois traits persistés,
+codés de `0` à `2`, suffisent pour donner du caractère sans encombrer l'écran :
+
+- `appetite` ajuste le gain de FOOD (`+15`, `+20`, `+25`) ;
+- `playfulness` ajuste le gain de bonheur et la fatigue de PLAY ;
+- `stubbornness` fixe le seuil d'acceptation de SLEEP (`50`, `65`, `80`).
+
+SLEEP devient une demande de coucher : sous son seuil, le dragon répond
+`NOT TIRED!` — ou `ONE MORE!` s'il est têtu — sans effet sur les jauges. Au
+dessus, il fait une courte sieste animée : `-50` fatigue, `+3` bonheur et `-1`
+faim. Ce sommeil de jeu reste séparé du deep sleep technique de l'ESP32.
+
 1. **V0.4 refactor sans changement fonctionnel**
    - PlatformIO ou Arduino CLI
    - `platformio.ini`

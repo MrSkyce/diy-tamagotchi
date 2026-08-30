@@ -3,6 +3,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <esp_sleep.h>
+#include <esp_system.h>
 
 #include "config.h"
 #include "persistence.h"
@@ -15,6 +16,10 @@ struct Pet {
   int happiness = 80;
   int health = 100;
   int cleanliness = 100;
+  int fatigue = 0;
+  uint8_t appetite = 1;
+  uint8_t playfulness = 1;
+  uint8_t stubbornness = 1;
   unsigned long birthTime = 0;
 };
 Pet pet;
@@ -110,12 +115,14 @@ unsigned long lastHungerTick = 0;
 unsigned long lastHappyTick = 0;
 unsigned long lastHealthTick = 0;
 unsigned long lastCleanlinessTick = 0;
+unsigned long lastFatigueTick = 0;
 unsigned long screenTimer = 0;
 unsigned long menuTitleShownAt = 0;
 constexpr unsigned long HUNGER_INTERVAL = 10000;
 constexpr unsigned long HAPPY_INTERVAL = 15000;
 constexpr unsigned long HEALTH_INTERVAL = 12000;
 constexpr unsigned long CLEANLINESS_INTERVAL = 20000;
+constexpr unsigned long FATIGUE_INTERVAL = 15000;
 constexpr unsigned long MENU_TITLE_DURATION = 1000;
 
 unsigned long lastAnimTick = 0;
@@ -134,6 +141,7 @@ unsigned long blinkStart = 0;
 bool idleFrame = false;
 bool actionFrame = false;
 bool medicineHelped = false;
+bool sleepAccepted = false;
 
 bool savePending = false;
 unsigned long saveRequestedAt = 0;
@@ -143,6 +151,10 @@ int clampStat(int value) {
   if (value < 0) return 0;
   if (value > 100) return 100;
   return value;
+}
+
+uint8_t clampTrait(uint8_t value) {
+  return value > 2 ? 2 : value;
 }
 
 unsigned long petAgeMinutes() {
@@ -159,6 +171,10 @@ bool saveCurrentPet() {
       static_cast<uint8_t>(pet.happiness),
       static_cast<uint8_t>(pet.health),
       static_cast<uint8_t>(pet.cleanliness),
+      static_cast<uint8_t>(pet.fatigue),
+      pet.appetite,
+      pet.playfulness,
+      pet.stubbornness,
       petAgeMs(),
   };
   if (!savePetSave(data)) {
@@ -314,6 +330,7 @@ void drawCreature(int x, int y, bool blink = false,
   else if (pet.health < 30) sprite = dragon_sick;
   else if (pet.hunger < 25) sprite = dragon_hungry;
   else if (pet.happiness < 25) sprite = dragon_sad;
+  else if (pet.fatigue >= 50) sprite = idleFrame ? dragon_tired_02 : dragon_tired_01;
   else if (blink) sprite = dragon_blink;
   else if (walking && creatureMoveRight) {
     sprite = idleFrame ? dragon_walk_right_02 : dragon_walk_right_01;
@@ -525,11 +542,18 @@ void drawCleanScreen() {
 void drawRestScreen() {
   display.clearDisplay();
   drawMainMenu();
-  const unsigned char* sleepSprite = actionFrame ? dragon_sleep_02 : dragon_sleep_01;
+  const unsigned char* sleepSprite;
+  if (sleepAccepted) {
+    sleepSprite = actionFrame ? dragon_sleep_02 : dragon_sleep_01;
+  } else {
+    sleepSprite = actionFrame ? dragon_sleep_refuse_02 : dragon_sleep_refuse_01;
+  }
   display.drawBitmap(44, 24, sleepSprite,
                      DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
   display.setTextSize(1);
-  drawCenteredText("Zzz...", 16);
+  if (sleepAccepted) drawCenteredText("Zzz...", 16);
+  else if (pet.stubbornness == 2) drawCenteredText("ONE MORE!", 16);
+  else drawCenteredText("NOT TIRED!", 16);
   display.display();
 }
 
@@ -541,7 +565,8 @@ void drawStatusScreen() {
   display.setCursor(70, 18); display.print("HAPPY "); display.print(pet.happiness);
   display.setCursor(3, 33); display.print("HP "); display.print(pet.health);
   display.setCursor(70, 33); display.print("CLEAN "); display.print(pet.cleanliness);
-  display.setCursor(35, 49); display.print("AGE "); display.print(petAgeMinutes()); display.print(" MIN");
+  display.setCursor(8, 49); display.print("FATIGUE "); display.print(pet.fatigue);
+  display.setCursor(79, 49); display.print("AGE "); display.print(petAgeMinutes()); display.print("M");
   display.display();
 }
 
@@ -562,14 +587,18 @@ void goToScreen(ScreenState newScreen) {
 }
 
 void feedPet() {
-  pet.hunger = clampStat(pet.hunger + 20);
+  constexpr int FOOD_RECOVERY[] = {15, 20, 25};
+  pet.hunger = clampStat(pet.hunger + FOOD_RECOVERY[pet.appetite]);
   markPetDirty();
   soundFood();
   goToScreen(SCREEN_FOOD);
 }
 
 void playWithPet() {
-  pet.happiness = clampStat(pet.happiness + 15);
+  constexpr int PLAY_HAPPINESS[] = {10, 15, 20};
+  constexpr int PLAY_FATIGUE[] = {8, 12, 16};
+  pet.happiness = clampStat(pet.happiness + PLAY_HAPPINESS[pet.playfulness]);
+  pet.fatigue = clampStat(pet.fatigue + PLAY_FATIGUE[pet.playfulness]);
   pet.hunger = clampStat(pet.hunger - 3);
   markPetDirty();
   soundPlay();
@@ -595,10 +624,14 @@ void cleanPet() {
 }
 
 void letPetRest() {
-  pet.happiness = clampStat(pet.happiness + 8);
-  pet.health = clampStat(pet.health + 5);
-  pet.hunger = clampStat(pet.hunger - 2);
-  markPetDirty();
+  constexpr int SLEEP_THRESHOLD[] = {50, 65, 80};
+  sleepAccepted = pet.fatigue >= SLEEP_THRESHOLD[pet.stubbornness];
+  if (sleepAccepted) {
+    pet.fatigue = clampStat(pet.fatigue - 50);
+    pet.happiness = clampStat(pet.happiness + 3);
+    pet.hunger = clampStat(pet.hunger - 1);
+    markPetDirty();
+  }
   soundRest();
   goToScreen(SCREEN_REST);
 }
@@ -623,6 +656,12 @@ void updateSimulation() {
     pet.cleanliness = clampStat(pet.cleanliness - 1);
     petChanged = true;
     Serial.print("Cleanliness: "); Serial.println(pet.cleanliness);
+  }
+  if (now - lastFatigueTick >= FATIGUE_INTERVAL) {
+    lastFatigueTick = now;
+    pet.fatigue = clampStat(pet.fatigue + 1);
+    petChanged = true;
+    Serial.print("Fatigue: "); Serial.println(pet.fatigue);
   }
   if (now - lastHealthTick >= HEALTH_INTERVAL) {
     lastHealthTick = now;
@@ -773,16 +812,24 @@ void setup() {
     pet.happiness = restoredData.happiness;
     pet.health = restoredData.health;
     pet.cleanliness = restoredData.cleanliness;
+    pet.fatigue = clampStat(restoredData.fatigue);
+    pet.appetite = clampTrait(restoredData.appetite);
+    pet.playfulness = clampTrait(restoredData.playfulness);
+    pet.stubbornness = clampTrait(restoredData.stubbornness);
     pet.birthTime = now - restoredData.ageMs;
     Serial.println("Pet restored");
   } else {
     pet.birthTime = now;
+    pet.appetite = esp_random() % 3;
+    pet.playfulness = esp_random() % 3;
+    pet.stubbornness = esp_random() % 3;
     Serial.println("New pet created");
   }
   lastHungerTick = now;
   lastHappyTick = now;
   lastHealthTick = now;
   lastCleanlinessTick = now;
+  lastFatigueTick = now;
   lastAnimTick = now;
   lastMoveTick = now;
   lastBlinkTick = now;

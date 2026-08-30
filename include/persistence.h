@@ -7,6 +7,10 @@ struct PetSaveData {
   uint8_t happiness;
   uint8_t health;
   uint8_t cleanliness;
+  uint8_t fatigue;
+  uint8_t appetite;
+  uint8_t playfulness;
+  uint8_t stubbornness;
   unsigned long ageMs;
 };
 
