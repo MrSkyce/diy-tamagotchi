@@ -196,7 +196,13 @@ Objectifs : extinction OLED, deep sleep, réveil bouton/timer, faible consommati
    - README de build
 2. Debounce propre / abstraction boutons
 3. Audio non bloquant
-4. Sprites : happy, hungry, sleeping, sick, etc.
+4. **Incrément graphique BMP (prochain)**
+   - déplacer le menu dans la bande jaune pour libérer la zone bleue 128×48
+   - établir `assets/sprites/*.bmp` comme source de vérité des sprites
+   - précompiler les BMP en tableaux `PROGMEM` avec un script sans dépendance
+   - redessiner un dragon original : idle, blink, happy, hungry, sad, sick,
+     sleeping
+   - suivre le détail dans `GRAPHICS_PLAN.md`
 5. Moteur Tamagotchi plus riche : cleanliness, fatigue, weight, évolution
 6. Cycle de vie : œuf → bébé → jeune → adulte
 7. Persistance NVS versionnée
