@@ -220,6 +220,20 @@ void drawHeader(const char* rightText) {
   display.print(rightText);
 }
 
+void drawMainMenuItem(int x, const char* label, bool selected) {
+  display.setCursor(x, 4);
+  display.print(selected ? ">" : " ");
+  display.print(label);
+}
+
+void drawMainMenu() {
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  drawMainMenuItem(0, "FOOD", selectedMenu == MENU_FOOD);
+  drawMainMenuItem(43, "PLAY", selectedMenu == MENU_PLAY);
+  drawMainMenuItem(86, "STAT", selectedMenu == MENU_STATUS);
+}
+
 void drawCreature(int x, int y, bool blink = false,
                   CreatureExpression expression = EXPRESSION_AUTO) {
   const unsigned char* sprite;
@@ -383,18 +397,14 @@ void updateBootAnimation() {
 
 void drawMainScreen() {
   display.clearDisplay();
-  drawHeader("PET");
-  drawCreature(52 + creatureOffsetX, 22, creatureBlink);
-  display.setTextSize(1);
-  display.setCursor(3, 55); display.print(selectedMenu == MENU_FOOD ? ">" : " "); display.print("FOOD");
-  display.setCursor(46, 55); display.print(selectedMenu == MENU_PLAY ? ">" : " "); display.print("PLAY");
-  display.setCursor(88, 55); display.print(selectedMenu == MENU_STATUS ? ">" : " "); display.print("STAT");
+  drawMainMenu();
+  drawCreature(52 + creatureOffsetX, 28, creatureBlink);
   display.display();
 }
 
 void drawFoodScreen() {
   display.clearDisplay();
-  drawHeader("FOOD");
+  drawMainMenu();
   drawCreature(52, 20, false, EXPRESSION_HAPPY);
   display.setTextSize(1);
   display.setCursor(35, 53);
@@ -404,7 +414,7 @@ void drawFoodScreen() {
 
 void drawPlayScreen() {
   display.clearDisplay();
-  drawHeader("PLAY");
+  drawMainMenu();
   drawCreature(52, 18, false, EXPRESSION_HAPPY);
   display.setTextSize(1);
   display.setCursor(43, 53);
@@ -414,7 +424,7 @@ void drawPlayScreen() {
 
 void drawStatusScreen() {
   display.clearDisplay();
-  drawHeader("STAT");
+  drawMainMenu();
   display.setTextSize(1);
   display.setCursor(5, 21); display.print("Food : "); display.print(pet.hunger);
   display.setCursor(5, 31); display.print("Happy: "); display.print(pet.happiness);

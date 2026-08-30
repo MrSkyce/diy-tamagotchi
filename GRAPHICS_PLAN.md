@@ -40,8 +40,9 @@ graphique dans une revue Git.
 
 ## Incrément d'implémentation
 
-1. Déplacer le menu principal dans la bande jaune et réserver la zone bleue au
-   contenu ; préserver les trois boutons et les écrans FOOD/PLAY/STAT.
+1. **Fait —** déplacer le menu principal dans la bande jaune et réserver la
+   zone bleue au contenu ; préserver les trois boutons et les écrans
+   FOOD/PLAY/STAT.
 2. Ajouter le répertoire d'assets, le convertisseur pré-build PlatformIO et un
    BMP de test ; compiler pour vérifier la génération reproductible.
 3. Remplacer les bitmaps codés à la main par des BMP originaux : idle, blink,
