@@ -11,6 +11,13 @@
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
+enum LifeStage : uint8_t { STAGE_EGG, STAGE_BABY, STAGE_YOUNG, STAGE_ADULT };
+
+constexpr uint8_t EGG_WARMTH_REQUIRED = 3;
+// Durées volontairement courtes pour valider le cycle sur le prototype.
+constexpr unsigned long BABY_STAGE_DURATION = 5UL * 60UL * 1000UL;
+constexpr unsigned long YOUNG_STAGE_DURATION = 15UL * 60UL * 1000UL;
+
 struct Pet {
   int hunger = 80;
   int happiness = 80;
@@ -20,7 +27,10 @@ struct Pet {
   uint8_t appetite = 1;
   uint8_t playfulness = 1;
   uint8_t stubbornness = 1;
+  LifeStage lifeStage = STAGE_EGG;
+  uint8_t warmth = 0;
   unsigned long birthTime = 0;
+  unsigned long stageStartedAgeMs = 0;
 };
 Pet pet;
 bool petRestored = false;
@@ -142,6 +152,7 @@ bool idleFrame = false;
 bool actionFrame = false;
 bool medicineHelped = false;
 bool sleepAccepted = false;
+bool hatchedThisAction = false;
 
 bool savePending = false;
 unsigned long saveRequestedAt = 0;
@@ -165,6 +176,20 @@ unsigned long petAgeMs() {
   return millis() - pet.birthTime;
 }
 
+unsigned long stageAgeMs() {
+  return petAgeMs() - pet.stageStartedAgeMs;
+}
+
+const char* lifeStageLabel() {
+  switch (pet.lifeStage) {
+    case STAGE_EGG: return "EGG";
+    case STAGE_BABY: return "BABY";
+    case STAGE_YOUNG: return "YOUNG";
+    case STAGE_ADULT: return "ADULT";
+  }
+  return "?";
+}
+
 bool saveCurrentPet() {
   const PetSaveData data{
       static_cast<uint8_t>(pet.hunger),
@@ -175,7 +200,10 @@ bool saveCurrentPet() {
       pet.appetite,
       pet.playfulness,
       pet.stubbornness,
+      static_cast<uint8_t>(pet.lifeStage),
+      pet.warmth,
       petAgeMs(),
+      pet.stageStartedAgeMs,
   };
   if (!savePetSave(data)) {
     Serial.println("Pet save failed");
@@ -296,9 +324,12 @@ void drawMainMenu() {
 }
 
 const char* menuTitle(MenuItem menu) {
+  if (pet.lifeStage == STAGE_EGG) {
+    return menu == MENU_FOOD ? "WARM" : "WARM ME FIRST";
+  }
   switch (menu) {
-    case MENU_FOOD: return "FOOD";
-    case MENU_PLAY: return "PLAY";
+    case MENU_FOOD: return pet.lifeStage == STAGE_BABY ? "MILK" : "FOOD";
+    case MENU_PLAY: return pet.lifeStage == STAGE_BABY ? "CUDDLE" : "PLAY";
     case MENU_MEDICINE: return "MEDICINE";
     case MENU_CLEAN: return "CLEAN";
     case MENU_SLEEP: return "SLEEP";
@@ -344,7 +375,6 @@ void drawCreature(int x, int y, bool blink = false,
 
 void drawBootEggFrame() {
   display.clearDisplay();
-  drawHeader("EGG");
   const unsigned char* eggFrames[] = {
       egg_roll_01, egg_roll_02, egg_roll_03, egg_roll_04};
   const unsigned char* egg = eggFrames[bootFrame % 4];
@@ -355,7 +385,6 @@ void drawBootEggFrame() {
 
 void drawBootCrackedEgg() {
   display.clearDisplay();
-  drawHeader("EGG");
   const unsigned char* crackFrames[] = {egg_crack_01, egg_crack_02, egg_cracked};
   display.drawBitmap(BOOT_EGG_END_X, BOOT_EGG_Y, crackFrames[bootFrame],
                      EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT, SSD1306_WHITE);
@@ -364,17 +393,25 @@ void drawBootCrackedEgg() {
 
 void drawBootHello() {
   display.clearDisplay();
-  drawHeader(petRestored ? "BACK" : "HI!");
-  drawCreature(44, 16, false);
+  if (pet.lifeStage == STAGE_EGG) {
+    display.drawBitmap(52, 20, egg_roll_01, EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT,
+                       SSD1306_WHITE);
+  } else {
+    drawCreature(44, 16, false);
+  }
   display.setTextSize(1);
-  display.setCursor(petRestored ? 28 : 44, 56);
-  display.print(petRestored ? "Welcome back!" : "Hello!");
+  if (pet.lifeStage == STAGE_EGG) {
+    display.setCursor(28, 56);
+    display.print("Keep me warm!");
+  } else {
+    display.setCursor(petRestored ? 28 : 44, 56);
+    display.print(petRestored ? "Welcome back!" : "Hello!");
+  }
   display.display();
 }
 
 void drawSleepScreen() {
   display.clearDisplay();
-  drawHeader("SLEEP");
   drawCreature(44, 16, false, EXPRESSION_SLEEPING);
   display.setTextSize(1);
   display.setCursor(46, 56);
@@ -385,10 +422,10 @@ void drawSleepScreen() {
 void startBootAnimation() {
   bootPhaseStartedAt = millis();
   bootFrame = 0;
-  if (wokeFromDeepSleep) {
+  if (wokeFromDeepSleep || pet.lifeStage == STAGE_EGG) {
     bootPhase = BOOT_HELLO;
     drawBootHello();
-    soundWake();
+    if (wokeFromDeepSleep) soundWake();
     return;
   }
 
@@ -485,16 +522,38 @@ void updateBootAnimation() {
 
 void drawMainScreen() {
   display.clearDisplay();
-  drawMainMenu();
-  if (millis() - menuTitleShownAt < MENU_TITLE_DURATION) {
-    drawMenuTitle(selectedMenu);
+  if (pet.lifeStage == STAGE_EGG) {
+    display.drawBitmap(52, 18, egg_roll_01, EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT,
+                       SSD1306_WHITE);
+    display.setTextSize(1);
+    drawCenteredText("FD: WARM ME", 52);
+  } else {
+    drawMainMenu();
+    if (millis() - menuTitleShownAt < MENU_TITLE_DURATION) {
+      drawMenuTitle(selectedMenu);
+    }
+    drawCreature(creatureX, 24, creatureBlink, EXPRESSION_AUTO, true);
   }
-  drawCreature(creatureX, 24, creatureBlink, EXPRESSION_AUTO, true);
   display.display();
 }
 
 void drawFoodScreen() {
   display.clearDisplay();
+  if (pet.lifeStage == STAGE_EGG || hatchedThisAction) {
+    display.drawBitmap(52, 24, hatchedThisAction ? egg_cracked : egg_roll_01,
+                       EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT, SSD1306_WHITE);
+    display.setTextSize(1);
+    if (hatchedThisAction) drawCenteredText("HATCHED!", 16);
+    else {
+      display.setCursor(38, 52);
+      display.print("WARM ");
+      display.print(pet.warmth);
+      display.print('/');
+      display.print(EGG_WARMTH_REQUIRED);
+    }
+    display.display();
+    return;
+  }
   drawMainMenu();
   const bool foodFrame = ((millis() - screenTimer) / 300) % 2 != 0;
   const unsigned char* foodSprite = foodFrame ? dragon_food_02 : dragon_food_01;
@@ -559,13 +618,14 @@ void drawRestScreen() {
 
 void drawStatusScreen() {
   display.clearDisplay();
-  drawMainMenu();
+  drawHeader("STATUS");
   display.setTextSize(1);
   display.setCursor(3, 18); display.print("FOOD "); display.print(pet.hunger);
   display.setCursor(70, 18); display.print("HAPPY "); display.print(pet.happiness);
   display.setCursor(3, 33); display.print("HP "); display.print(pet.health);
   display.setCursor(70, 33); display.print("CLEAN "); display.print(pet.cleanliness);
-  display.setCursor(8, 49); display.print("FATIGUE "); display.print(pet.fatigue);
+  display.setCursor(3, 49); display.print("FAT "); display.print(pet.fatigue);
+  display.setCursor(47, 49); display.print(lifeStageLabel());
   display.setCursor(79, 49); display.print("AGE "); display.print(petAgeMinutes()); display.print("M");
   display.display();
 }
@@ -587,6 +647,23 @@ void goToScreen(ScreenState newScreen) {
 }
 
 void feedPet() {
+  hatchedThisAction = false;
+  if (pet.lifeStage == STAGE_EGG) {
+    pet.warmth++;
+    if (pet.warmth >= EGG_WARMTH_REQUIRED) {
+      pet.warmth = EGG_WARMTH_REQUIRED;
+      pet.lifeStage = STAGE_BABY;
+      pet.stageStartedAgeMs = petAgeMs();
+      hatchedThisAction = true;
+      queueSound(SOUND_BIRTH, sizeof(SOUND_BIRTH) / sizeof(SOUND_BIRTH[0]));
+      Serial.println("Egg hatched: baby dragon");
+    } else {
+      soundFood();
+    }
+    markPetDirty();
+    goToScreen(SCREEN_FOOD);
+    return;
+  }
   constexpr int FOOD_RECOVERY[] = {15, 20, 25};
   pet.hunger = clampStat(pet.hunger + FOOD_RECOVERY[pet.appetite]);
   markPetDirty();
@@ -595,6 +672,11 @@ void feedPet() {
 }
 
 void playWithPet() {
+  if (pet.lifeStage == STAGE_EGG) {
+    hatchedThisAction = false;
+    goToScreen(SCREEN_FOOD);
+    return;
+  }
   constexpr int PLAY_HAPPINESS[] = {10, 15, 20};
   constexpr int PLAY_FATIGUE[] = {8, 12, 16};
   pet.happiness = clampStat(pet.happiness + PLAY_HAPPINESS[pet.playfulness]);
@@ -607,6 +689,11 @@ void playWithPet() {
 }
 
 void giveMedicine() {
+  if (pet.lifeStage == STAGE_EGG) {
+    hatchedThisAction = false;
+    goToScreen(SCREEN_FOOD);
+    return;
+  }
   medicineHelped = pet.health < 70;
   if (medicineHelped) {
     pet.health = clampStat(pet.health + 25);
@@ -618,6 +705,11 @@ void giveMedicine() {
 }
 
 void cleanPet() {
+  if (pet.lifeStage == STAGE_EGG) {
+    hatchedThisAction = false;
+    goToScreen(SCREEN_FOOD);
+    return;
+  }
   pet.cleanliness = clampStat(pet.cleanliness + 40);
   markPetDirty();
   soundClean();
@@ -625,6 +717,11 @@ void cleanPet() {
 }
 
 void letPetRest() {
+  if (pet.lifeStage == STAGE_EGG) {
+    hatchedThisAction = false;
+    goToScreen(SCREEN_FOOD);
+    return;
+  }
   constexpr int SLEEP_THRESHOLD[] = {50, 65, 80};
   sleepAccepted = pet.fatigue >= SLEEP_THRESHOLD[pet.stubbornness];
   if (sleepAccepted) {
@@ -635,6 +732,20 @@ void letPetRest() {
   }
   soundRest();
   goToScreen(SCREEN_REST);
+}
+
+void updateLifeCycle() {
+  if (pet.lifeStage == STAGE_BABY && stageAgeMs() >= BABY_STAGE_DURATION) {
+    pet.lifeStage = STAGE_YOUNG;
+    pet.stageStartedAgeMs = petAgeMs();
+    markPetDirty();
+    Serial.println("Life stage: young dragon");
+  } else if (pet.lifeStage == STAGE_YOUNG && stageAgeMs() >= YOUNG_STAGE_DURATION) {
+    pet.lifeStage = STAGE_ADULT;
+    pet.stageStartedAgeMs = petAgeMs();
+    markPetDirty();
+    Serial.println("Life stage: adult dragon");
+  }
 }
 
 void updateSimulation() {
@@ -819,13 +930,19 @@ void setup() {
     pet.appetite = clampTrait(restoredData.appetite);
     pet.playfulness = clampTrait(restoredData.playfulness);
     pet.stubbornness = clampTrait(restoredData.stubbornness);
+    pet.lifeStage = static_cast<LifeStage>(restoredData.lifeStage);
+    pet.warmth = restoredData.warmth;
     pet.birthTime = now - restoredData.ageMs;
+    pet.stageStartedAgeMs = restoredData.stageStartedAgeMs;
     Serial.println("Pet restored");
   } else {
     pet.birthTime = now;
     pet.appetite = esp_random() % 3;
     pet.playfulness = esp_random() % 3;
     pet.stubbornness = esp_random() % 3;
+    pet.lifeStage = STAGE_EGG;
+    pet.warmth = 0;
+    pet.stageStartedAgeMs = 0;
     Serial.println("New pet created");
   }
   lastHungerTick = now;
@@ -858,6 +975,7 @@ void loop() {
     return;
   }
   updateSimulation();
+  updateLifeCycle();
   updateScreenState();
   updateCreatureAnimation();
   handleButtons();

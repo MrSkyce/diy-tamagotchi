@@ -211,9 +211,10 @@ Objectifs : extinction OLED, deep sleep, réveil bouton/timer, faible consommati
 non bloquant, sprites BMP, animation de naissance, persistance NVS versionnée,
 deep sleep, six actions et personnalité légère.
 
-1. **Prochain incrément — cycle de vie.** Œuf → bébé → jeune → adulte ; l'œuf
-   est réchauffé, puis les actions se transforment selon l'âge.
-2. **Temps réel hors alimentation.** Mesurer le temps de sommeil pour que
+1. **Fait — cycle de vie.** Œuf → bébé → jeune → adulte, persistant en NVS ;
+   l'œuf est réchauffé avec `FD`, puis le bébé affiche `MILK` et `CUDDLE`.
+   Les seuils de cinq puis quinze minutes sont volontairement courts pour le prototype.
+2. **Prochain incrément — temps réel hors alimentation.** Mesurer le temps de sommeil pour que
    l'âge, la fatigue et les besoins continuent d'évoluer en deep sleep.
 3. **Équilibrage.** Revoir les seuils, les gains et les traits après usage
    réel avec l'enfant.

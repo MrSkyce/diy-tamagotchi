@@ -11,7 +11,10 @@ struct PetSaveData {
   uint8_t appetite;
   uint8_t playfulness;
   uint8_t stubbornness;
+  uint8_t lifeStage;
+  uint8_t warmth;
   unsigned long ageMs;
+  unsigned long stageStartedAgeMs;
 };
 
 bool loadPetSave(PetSaveData& data);

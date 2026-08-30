@@ -1,10 +1,10 @@
 # Tamagotchi ESP32-C3
 
 Prototype de Tamagotchi DIY basé sur ESP32-C3, OLED 128×64, trois boutons et buzzer passif.
-Le firmware affiche actuellement la version `v0.5` dans le coin supérieur droit
+Le firmware affiche actuellement la version `v0.6` dans le coin supérieur droit
 des écrans de transition.
 
-## V0.5 : firmware actuel
+## V0.6 : firmware actuel
 
 Le projet PlatformIO est compilable pour `esp32-c3-devkitm-1`, l'équivalent
 PlatformIO retenu pour la configuration Arduino validée `ESP32C3 Dev Module`.
@@ -62,9 +62,9 @@ de 15 s et un HP à chaque cycle de santé de 12 s, jusqu'à ce qu'il dorme.
 
 ## Persistance
 
-Les stats, l'âge, l'hygiène, la fatigue et les trois traits de personnalité
-sont sauvegardés dans la mémoire NVS interne de l'ESP32. Le schéma NVS `5`
-correspond exactement au firmware `v0.5` : une sauvegarde d'une autre version
+Les stats, l'âge, l'hygiène, la fatigue, le stade de vie et les trois traits de personnalité
+sont sauvegardés dans la mémoire NVS interne de l'ESP32. Le schéma NVS `6`
+correspond exactement au firmware `v0.6` : une sauvegarde d'une autre version
 est volontairement ignorée et un nouveau dragon est créé. Elle est regroupée
 après les actions et actualisée périodiquement pour limiter l'usure de la flash.
 
@@ -75,11 +75,13 @@ Après 30 secondes sans appui, le prototype sauvegarde le dragon, affiche
 carte. Cette durée courte sert aux tests ; elle sera ajustée pour l'usage sur
 batterie.
 
-## Prochaine étape
+## Cycle de vie
 
-Le prochain incrément est le cycle de vie `œuf → bébé → jeune → adulte` : l'œuf
-sera réchauffé plutôt que nourri et les actions évolueront avec l'âge. Le
-Bluetooth entre dragons reste une piste ultérieure. Voir [HANDOFF.md](HANDOFF.md).
+Le dragon commence dans un œuf : sélectionnez `FD` trois fois pour le réchauffer
+et le faire éclore. Il devient ensuite bébé, jeune après cinq minutes, puis adulte
+quinze minutes plus tard. Ces délais courts sont destinés à la validation sur le
+prototype. Durant le stade œuf, les autres actions indiquent de le réchauffer ;
+pour un bébé, `FD` et `PL` sont affichés comme `MILK` et `CUDDLE`.
 
 ### Sprites BMP
 

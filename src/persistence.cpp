@@ -20,7 +20,10 @@ struct StoredPet {
   uint8_t appetite;
   uint8_t playfulness;
   uint8_t stubbornness;
+  uint8_t lifeStage;
+  uint8_t warmth;
   uint32_t ageMs;
+  uint32_t stageStartedAgeMs;
   uint32_t checksum;
 };
 
@@ -34,20 +37,25 @@ uint32_t petChecksum(const StoredPet& pet) {
   checksum = (checksum * 31U) ^ pet.appetite;
   checksum = (checksum * 31U) ^ pet.playfulness;
   checksum = (checksum * 31U) ^ pet.stubbornness;
+  checksum = (checksum * 31U) ^ pet.lifeStage;
+  checksum = (checksum * 31U) ^ pet.warmth;
   checksum = (checksum * 31U) ^ pet.ageMs;
+  checksum = (checksum * 31U) ^ pet.stageStartedAgeMs;
   return checksum;
 }
 
 bool hasValidStats(const StoredPet& pet) {
   return pet.hunger <= 100 && pet.happiness <= 100 && pet.health <= 100 &&
          pet.cleanliness <= 100 && pet.fatigue <= 100 && pet.appetite <= 2 &&
-         pet.playfulness <= 2 && pet.stubbornness <= 2;
+         pet.playfulness <= 2 && pet.stubbornness <= 2 && pet.lifeStage <= 3 &&
+         pet.warmth <= 3 && pet.stageStartedAgeMs <= pet.ageMs;
 }
 
 bool hasValidSaveData(const PetSaveData& data) {
   return data.hunger <= 100 && data.happiness <= 100 && data.health <= 100 &&
          data.cleanliness <= 100 && data.fatigue <= 100 && data.appetite <= 2 &&
-         data.playfulness <= 2 && data.stubbornness <= 2;
+         data.playfulness <= 2 && data.stubbornness <= 2 && data.lifeStage <= 3 &&
+         data.warmth <= 3 && data.stageStartedAgeMs <= data.ageMs;
 }
 }  // namespace
 
@@ -78,7 +86,10 @@ bool loadPetSave(PetSaveData& data) {
   data.appetite = stored.appetite;
   data.playfulness = stored.playfulness;
   data.stubbornness = stored.stubbornness;
+  data.lifeStage = stored.lifeStage;
+  data.warmth = stored.warmth;
   data.ageMs = stored.ageMs;
+  data.stageStartedAgeMs = stored.stageStartedAgeMs;
   return true;
 }
 
@@ -96,7 +107,10 @@ bool savePetSave(const PetSaveData& data) {
   stored.appetite = data.appetite;
   stored.playfulness = data.playfulness;
   stored.stubbornness = data.stubbornness;
+  stored.lifeStage = data.lifeStage;
+  stored.warmth = data.warmth;
   stored.ageMs = data.ageMs;
+  stored.stageStartedAgeMs = data.stageStartedAgeMs;
   stored.checksum = petChecksum(stored);
 
   Preferences preferences;
