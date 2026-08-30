@@ -36,6 +36,39 @@ Button leftButton{BTN_LEFT};
 Button okButton{BTN_OK};
 Button rightButton{BTN_RIGHT};
 
+struct SoundStep {
+  uint16_t frequency;
+  unsigned long duration;
+};
+
+constexpr SoundStep SOUND_OK[] = {{1200, 50}, {0, 10}, {1800, 70}};
+constexpr SoundStep SOUND_FOOD[] = {{800, 60}, {0, 20}, {1000, 60}};
+constexpr SoundStep SOUND_PLAY[] = {
+    {1200, 60}, {0, 10}, {1600, 60}, {0, 10}, {2000, 80}};
+constexpr SoundStep SOUND_BIRTH[] = {
+    {800, 110}, {0, 30}, {1050, 110}, {0, 30},
+    {1350, 110}, {0, 30}, {1750, 180}, {0, 40}};
+// Test visible de lecture non bloquante : 4 notes pendant les 1,6 s de l'œuf.
+constexpr SoundStep SOUND_BOOT_TEST[] = {
+    {523, 300}, {0, 100}, {659, 300}, {0, 100},
+    {784, 300}, {0, 100}, {1047, 300}, {0, 100}};
+
+struct SoundPlayer {
+  const SoundStep* steps = nullptr;
+  size_t stepCount = 0;
+  size_t stepIndex = 0;
+  unsigned long stepStartedAt = 0;
+  const SoundStep* queuedSteps = nullptr;
+  size_t queuedStepCount = 0;
+  bool active = false;
+};
+SoundPlayer soundPlayer;
+
+enum BootPhase { BOOT_EGG, BOOT_CRACKED_EGG, BOOT_CLEAR, BOOT_HELLO, BOOT_DONE };
+BootPhase bootPhase = BOOT_EGG;
+unsigned long bootPhaseStartedAt = 0;
+int bootFrame = 0;
+
 unsigned long lastHungerTick = 0;
 unsigned long lastHappyTick = 0;
 unsigned long lastHealthTick = 0;
@@ -65,17 +98,68 @@ unsigned long petAgeMinutes() {
   return (millis() - pet.birthTime) / 60000;
 }
 
-void soundMenu() { tone(BUZZER_PIN, 1800, 30); }
-void soundOk() { tone(BUZZER_PIN, 1200, 50); delay(60); tone(BUZZER_PIN, 1800, 70); }
-void soundFood() { tone(BUZZER_PIN, 800, 60); delay(80); tone(BUZZER_PIN, 1000, 60); }
-void soundPlay() { tone(BUZZER_PIN, 1200, 60); delay(70); tone(BUZZER_PIN, 1600, 60); delay(70); tone(BUZZER_PIN, 2000, 80); }
-void soundBirth() {
-  tone(BUZZER_PIN, 800, 110); delay(140);
-  tone(BUZZER_PIN, 1050, 110); delay(140);
-  tone(BUZZER_PIN, 1350, 110); delay(140);
-  tone(BUZZER_PIN, 1750, 180); delay(220);
-  noTone(BUZZER_PIN);
+void startSoundStep(unsigned long now) {
+  const SoundStep& step = soundPlayer.steps[soundPlayer.stepIndex];
+  soundPlayer.stepStartedAt = now;
+  if (step.frequency == 0) noTone(BUZZER_PIN);
+  else tone(BUZZER_PIN, step.frequency, step.duration);
 }
+
+void playSound(const SoundStep* steps, size_t stepCount) {
+  soundPlayer.steps = steps;
+  soundPlayer.stepCount = stepCount;
+  soundPlayer.stepIndex = 0;
+  soundPlayer.queuedSteps = nullptr;
+  soundPlayer.queuedStepCount = 0;
+  soundPlayer.active = true;
+  startSoundStep(millis());
+}
+
+void queueSound(const SoundStep* steps, size_t stepCount) {
+  if (!soundPlayer.active) {
+    playSound(steps, stepCount);
+    return;
+  }
+  soundPlayer.queuedSteps = steps;
+  soundPlayer.queuedStepCount = stepCount;
+}
+
+void updateAudio() {
+  if (!soundPlayer.active) return;
+
+  const unsigned long now = millis();
+  while (soundPlayer.active && now - soundPlayer.stepStartedAt >=
+                                   soundPlayer.steps[soundPlayer.stepIndex].duration) {
+    soundPlayer.stepStartedAt += soundPlayer.steps[soundPlayer.stepIndex].duration;
+    soundPlayer.stepIndex++;
+    if (soundPlayer.stepIndex < soundPlayer.stepCount) {
+      const SoundStep& step = soundPlayer.steps[soundPlayer.stepIndex];
+      if (step.frequency == 0) noTone(BUZZER_PIN);
+      else tone(BUZZER_PIN, step.frequency, step.duration);
+      continue;
+    }
+    if (soundPlayer.queuedSteps != nullptr) {
+      soundPlayer.steps = soundPlayer.queuedSteps;
+      soundPlayer.stepCount = soundPlayer.queuedStepCount;
+      soundPlayer.stepIndex = 0;
+      soundPlayer.queuedSteps = nullptr;
+      soundPlayer.queuedStepCount = 0;
+      const SoundStep& step = soundPlayer.steps[0];
+      if (step.frequency == 0) noTone(BUZZER_PIN);
+      else tone(BUZZER_PIN, step.frequency, step.duration);
+      continue;
+    }
+    noTone(BUZZER_PIN);
+    soundPlayer.active = false;
+  }
+}
+
+void soundMenu() { tone(BUZZER_PIN, 1800, 30); }
+void soundOk() { playSound(SOUND_OK, sizeof(SOUND_OK) / sizeof(SOUND_OK[0])); }
+void soundFood() { queueSound(SOUND_FOOD, sizeof(SOUND_FOOD) / sizeof(SOUND_FOOD[0])); }
+void soundPlay() { queueSound(SOUND_PLAY, sizeof(SOUND_PLAY) / sizeof(SOUND_PLAY[0])); }
+
+void goToScreen(ScreenState newScreen);
 
 void drawHeader(const char* rightText) {
   display.setTextColor(SSD1306_WHITE);
@@ -113,27 +197,26 @@ void drawCrackedEgg(int x, int y) {
   display.drawLine(x + 16, y + 12, x + 20, y + 15, SSD1306_BLACK);
 }
 
-void bootAnimation() {
+void drawBootEggFrame(int frame) {
   const int x = 52;
   const int y = 26;
-  for (int i = 0; i < 10; i++) {
-    display.clearDisplay();
-    drawHeader("EGG");
-    int dx = 0;
-    if (i % 4 == 0) dx = -2;
-    else if (i % 4 == 2) dx = 2;
-    drawEgg(x + dx, y);
-    display.display();
-    delay(160);
-  }
-  for (int i = 0; i < 3; i++) {
-    display.clearDisplay();
-    drawHeader("EGG");
-    drawCrackedEgg(x, y);
-    display.display();
-    delay(260);
-  }
-  display.clearDisplay(); display.display(); delay(120);
+  display.clearDisplay();
+  drawHeader("EGG");
+  int dx = 0;
+  if (frame % 4 == 0) dx = -2;
+  else if (frame % 4 == 2) dx = 2;
+  drawEgg(x + dx, y);
+  display.display();
+}
+
+void drawBootCrackedEgg() {
+  display.clearDisplay();
+  drawHeader("EGG");
+  drawCrackedEgg(52, 26);
+  display.display();
+}
+
+void drawBootHello() {
   display.clearDisplay();
   drawHeader("HI!");
   drawCreature(52, 22, false);
@@ -141,8 +224,58 @@ void bootAnimation() {
   display.setCursor(44, 55);
   display.print("Hello!");
   display.display();
-  soundBirth();
-  delay(700);
+}
+
+void startBootAnimation() {
+  bootPhase = BOOT_EGG;
+  bootPhaseStartedAt = millis();
+  bootFrame = 0;
+  drawBootEggFrame(bootFrame);
+  playSound(SOUND_BOOT_TEST, sizeof(SOUND_BOOT_TEST) / sizeof(SOUND_BOOT_TEST[0]));
+}
+
+void updateBootAnimation() {
+  const unsigned long now = millis();
+  switch (bootPhase) {
+    case BOOT_EGG:
+      if (now - bootPhaseStartedAt >= 160) {
+        bootPhaseStartedAt += 160;
+        if (++bootFrame < 10) drawBootEggFrame(bootFrame);
+        else {
+          bootPhase = BOOT_CRACKED_EGG;
+          bootFrame = 0;
+          drawBootCrackedEgg();
+        }
+      }
+      break;
+    case BOOT_CRACKED_EGG:
+      if (now - bootPhaseStartedAt >= 260) {
+        bootPhaseStartedAt += 260;
+        if (++bootFrame < 3) drawBootCrackedEgg();
+        else {
+          bootPhase = BOOT_CLEAR;
+          display.clearDisplay();
+          display.display();
+        }
+      }
+      break;
+    case BOOT_CLEAR:
+      if (now - bootPhaseStartedAt >= 120) {
+        bootPhase = BOOT_HELLO;
+        bootPhaseStartedAt = now;
+        drawBootHello();
+        playSound(SOUND_BIRTH, sizeof(SOUND_BIRTH) / sizeof(SOUND_BIRTH[0]));
+      }
+      break;
+    case BOOT_HELLO:
+      if (now - bootPhaseStartedAt >= 1340) {
+        bootPhase = BOOT_DONE;
+        goToScreen(SCREEN_MAIN);
+      }
+      break;
+    case BOOT_DONE:
+      break;
+  }
 }
 
 void drawMainScreen() {
@@ -343,12 +476,17 @@ void setup() {
   lastAnimTick = now;
   lastBlinkTick = now;
 
-  bootAnimation();
-  goToScreen(SCREEN_MAIN);
+  startBootAnimation();
   Serial.println("Dragon Tamagotchi started");
 }
 
 void loop() {
+  updateAudio();
+  if (bootPhase != BOOT_DONE) {
+    updateBootAnimation();
+    delay(5);
+    return;
+  }
   updateSimulation();
   updateScreenState();
   updateCreatureAnimation();
