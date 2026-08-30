@@ -4,6 +4,7 @@
 #include <Adafruit_SSD1306.h>
 
 #include "config.h"
+#include "persistence.h"
 #include "sprites.h"
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
@@ -15,6 +16,7 @@ struct Pet {
   unsigned long birthTime = 0;
 };
 Pet pet;
+bool petRestored = false;
 
 enum ScreenState { SCREEN_MAIN, SCREEN_FOOD, SCREEN_PLAY, SCREEN_STATUS };
 ScreenState currentScreen = SCREEN_MAIN;
@@ -54,10 +56,6 @@ constexpr SoundStep SOUND_PLAY[] = {
 constexpr SoundStep SOUND_BIRTH[] = {
     {800, 110}, {0, 30}, {1050, 110}, {0, 30},
     {1350, 110}, {0, 30}, {1750, 180}, {0, 40}};
-// Test visible de lecture non bloquante : 4 notes pendant les 1,6 s de l'œuf.
-constexpr SoundStep SOUND_BOOT_TEST[] = {
-    {523, 300}, {0, 100}, {659, 300}, {0, 100},
-    {784, 300}, {0, 100}, {1047, 300}, {0, 100}};
 
 struct SoundPlayer {
   const SoundStep* steps = nullptr;
@@ -94,6 +92,10 @@ bool creatureBlink = false;
 unsigned long blinkStart = 0;
 bool idleFrame = false;
 
+bool savePending = false;
+unsigned long saveRequestedAt = 0;
+unsigned long lastPetSaveAt = 0;
+
 int clampStat(int value) {
   if (value < 0) return 0;
   if (value > 100) return 100;
@@ -102,6 +104,42 @@ int clampStat(int value) {
 
 unsigned long petAgeMinutes() {
   return (millis() - pet.birthTime) / 60000;
+}
+
+unsigned long petAgeMs() {
+  return millis() - pet.birthTime;
+}
+
+bool saveCurrentPet() {
+  const PetSaveData data{
+      static_cast<uint8_t>(pet.hunger),
+      static_cast<uint8_t>(pet.happiness),
+      static_cast<uint8_t>(pet.health),
+      petAgeMs(),
+  };
+  if (!savePetSave(data)) {
+    Serial.println("Pet save failed");
+    return false;
+  }
+
+  savePending = false;
+  lastPetSaveAt = millis();
+  Serial.println("Pet saved");
+  return true;
+}
+
+void markPetDirty() {
+  savePending = true;
+  saveRequestedAt = millis();
+}
+
+void updatePersistence() {
+  const unsigned long now = millis();
+  if (savePending && now - saveRequestedAt >= PET_SAVE_DEBOUNCE_INTERVAL) {
+    saveCurrentPet();
+  } else if (!savePending && now - lastPetSaveAt >= PET_SAVE_CHECKPOINT_INTERVAL) {
+    saveCurrentPet();
+  }
 }
 
 void startSoundStep(unsigned long now) {
@@ -229,11 +267,11 @@ void drawBootCrackedEgg() {
 
 void drawBootHello() {
   display.clearDisplay();
-  drawHeader("HI!");
+  drawHeader(petRestored ? "BACK" : "HI!");
   drawCreature(52, 22, false);
   display.setTextSize(1);
-  display.setCursor(44, 55);
-  display.print("Hello!");
+  display.setCursor(petRestored ? 28 : 44, 55);
+  display.print(petRestored ? "Welcome back!" : "Hello!");
   display.display();
 }
 
@@ -242,7 +280,6 @@ void startBootAnimation() {
   bootPhaseStartedAt = millis();
   bootFrame = 0;
   drawBootEggFrame(bootFrame);
-  playSound(SOUND_BOOT_TEST, sizeof(SOUND_BOOT_TEST) / sizeof(SOUND_BOOT_TEST[0]));
 }
 
 void updateBootAnimation() {
@@ -275,7 +312,9 @@ void updateBootAnimation() {
         bootPhase = BOOT_HELLO;
         bootPhaseStartedAt = now;
         drawBootHello();
-        playSound(SOUND_BIRTH, sizeof(SOUND_BIRTH) / sizeof(SOUND_BIRTH[0]));
+        if (!petRestored) {
+          playSound(SOUND_BIRTH, sizeof(SOUND_BIRTH) / sizeof(SOUND_BIRTH[0]));
+        }
       }
       break;
     case BOOT_HELLO:
@@ -344,6 +383,7 @@ void goToScreen(ScreenState newScreen) {
 
 void feedPet() {
   pet.hunger = clampStat(pet.hunger + 20);
+  markPetDirty();
   soundFood();
   goToScreen(SCREEN_FOOD);
 }
@@ -351,20 +391,24 @@ void feedPet() {
 void playWithPet() {
   pet.happiness = clampStat(pet.happiness + 15);
   pet.hunger = clampStat(pet.hunger - 3);
+  markPetDirty();
   soundPlay();
   goToScreen(SCREEN_PLAY);
 }
 
 void updateSimulation() {
   unsigned long now = millis();
+  bool petChanged = false;
   if (now - lastHungerTick >= HUNGER_INTERVAL) {
     lastHungerTick = now;
     pet.hunger = clampStat(pet.hunger - 1);
+    petChanged = true;
     Serial.print("Hunger: "); Serial.println(pet.hunger);
   }
   if (now - lastHappyTick >= HAPPY_INTERVAL) {
     lastHappyTick = now;
     pet.happiness = clampStat(pet.happiness - 1);
+    petChanged = true;
     Serial.print("Happy: "); Serial.println(pet.happiness);
   }
   if (now - lastHealthTick >= HEALTH_INTERVAL) {
@@ -372,8 +416,10 @@ void updateSimulation() {
     if (pet.hunger < 25) pet.health--;
     if (pet.happiness < 20) pet.health--;
     pet.health = clampStat(pet.health);
+    petChanged = true;
     Serial.print("Health: "); Serial.println(pet.health);
   }
+  if (petChanged) markPetDirty();
 }
 
 void updateCreatureAnimation() {
@@ -480,12 +526,26 @@ void setup() {
     button->lastTransitionTime = now;
   }
 
-  pet.birthTime = millis();
+  PetSaveData restoredData{};
+  petRestored = loadPetSave(restoredData);
+  if (petRestored) {
+    pet.hunger = restoredData.hunger;
+    pet.happiness = restoredData.happiness;
+    pet.health = restoredData.health;
+    pet.birthTime = now - restoredData.ageMs;
+    Serial.println("Pet restored");
+  } else {
+    pet.birthTime = now;
+    Serial.println("New pet created");
+  }
   lastHungerTick = now;
   lastHappyTick = now;
   lastHealthTick = now;
   lastAnimTick = now;
   lastBlinkTick = now;
+  lastPetSaveAt = now;
+
+  if (!petRestored) saveCurrentPet();
 
   startBootAnimation();
   Serial.println("Dragon Tamagotchi started");
@@ -502,5 +562,6 @@ void loop() {
   updateScreenState();
   updateCreatureAnimation();
   handleButtons();
+  updatePersistence();
   delay(5);
 }

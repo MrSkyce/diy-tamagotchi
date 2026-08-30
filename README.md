@@ -40,3 +40,11 @@ mécaniques, sans bloquer la boucle principale.
 
 Le dragon exprime son état : joyeux après une action, affamé quand `Food` est
 critique, triste quand `Happy` est critique et malade quand `HP` est critique.
+
+## Persistance
+
+Les stats et l'âge du dragon sont sauvegardés dans la mémoire NVS interne de
+l'ESP32. La sauvegarde est versionnée et vérifiée avant restauration. Elle est
+regroupée après les actions et actualisée périodiquement pour limiter l'usure
+de la flash. Le temps hors alimentation n'est pas encore compté : cette étape
+sera traitée avec le deep sleep et une source de temps adaptée.

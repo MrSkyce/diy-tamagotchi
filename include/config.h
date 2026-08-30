@@ -14,3 +14,6 @@ constexpr uint8_t BUZZER_PIN = 4;
 
 // A press is accepted only after this duration at a stable logic level.
 constexpr unsigned long BUTTON_DEBOUNCE_INTERVAL = 35;
+
+constexpr unsigned long PET_SAVE_DEBOUNCE_INTERVAL = 3000;
+constexpr unsigned long PET_SAVE_CHECKPOINT_INTERVAL = 300000;
