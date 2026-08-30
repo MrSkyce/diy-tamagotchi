@@ -187,6 +187,26 @@ Objectifs : extinction OLED, deep sleep, réveil bouton/timer, faible consommati
 
 ## Roadmap suggérée
 
+### Prochain incrément — actions de soin
+
+Le menu compact peut accueillir six entrées, chacune limitée à deux lettres
+dans la bande jaune et explicitée dans la première ligne bleue. L'objectif est
+de conserver les actions existantes puis d'ajouter progressivement :
+
+1. `FD` / **FOOD** : nourrir le dragon (déjà disponible).
+2. `PL` / **PLAY** : jouer avec lui (déjà disponible).
+3. `MD` / **MEDICINE** : soigner une santé dégradée, avec un retour si le
+   médicament n'est pas nécessaire.
+4. `CL` / **CLEAN** : ajouter une jauge d'hygiène, la faire décroître et la
+   restaurer par le nettoyage.
+5. `SL` / **SLEEP** : offrir un repos au dragon, distinct de la veille
+   profonde technique de la carte.
+6. `ST` / **STATUS** : consulter les jauges, y compris l'hygiène.
+
+Chaque nouvelle action doit recevoir une animation BMP, un effet sonore, une
+durée d'affichage lisible et une vérification sur l'OLED réelle. Le cycle de
+vie œuf → adulte viendra ensuite faire évoluer cette liste selon l'âge.
+
 1. **V0.4 refactor sans changement fonctionnel**
    - PlatformIO ou Arduino CLI
    - `platformio.ini`

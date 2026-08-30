@@ -56,6 +56,9 @@ graphique dans une revue Git.
 Le dragon 40×40 se promène entre les marges de la zone bleue, avec un
 déplacement d'un pixel toutes les 120 ms. Les frames `dragon_walk_left_01/02`
 et `dragon_walk_right_01/02` alternent les pattes selon son sens de marche.
+Pour préparer l'ajout d'actions, chaque entrée du menu jaune est limitée à
+deux lettres (`FD`, `PL`, `ST`) ; sur l'écran principal, son nom complet est
+centré sur la première ligne bleue. Le dragon commence donc à `y = 24`.
 
 Les messages d'action sont placés dans les marges latérales bleues afin que le
 dragon conserve la même ligne de sol sur l'écran principal, FOOD et PLAY.

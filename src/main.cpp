@@ -14,17 +14,33 @@ struct Pet {
   int hunger = 80;
   int happiness = 80;
   int health = 100;
+  int cleanliness = 100;
   unsigned long birthTime = 0;
 };
 Pet pet;
 bool petRestored = false;
 
-enum ScreenState { SCREEN_MAIN, SCREEN_FOOD, SCREEN_PLAY, SCREEN_STATUS };
+enum ScreenState {
+  SCREEN_MAIN,
+  SCREEN_FOOD,
+  SCREEN_PLAY,
+  SCREEN_MEDICINE,
+  SCREEN_CLEAN,
+  SCREEN_REST,
+  SCREEN_STATUS,
+};
 ScreenState currentScreen = SCREEN_MAIN;
 
-enum MenuItem { MENU_FOOD, MENU_PLAY, MENU_STATUS };
+enum MenuItem {
+  MENU_FOOD,
+  MENU_PLAY,
+  MENU_MEDICINE,
+  MENU_CLEAN,
+  MENU_SLEEP,
+  MENU_STATUS,
+};
 MenuItem selectedMenu = MENU_FOOD;
-constexpr int MENU_COUNT = 3;
+constexpr int MENU_COUNT = 6;
 
 enum CreatureExpression {
   EXPRESSION_AUTO,
@@ -60,6 +76,9 @@ constexpr SoundStep SOUND_BIRTH[] = {
 constexpr SoundStep SOUND_WAKE[] = {{1400, 60}, {0, 40}, {1900, 90}};
 constexpr SoundStep SOUND_EGG_CRACK[] = {
     {2300, 30}, {0, 25}, {1500, 45}, {0, 20}, {700, 80}};
+constexpr SoundStep SOUND_MEDICINE[] = {{900, 50}, {0, 25}, {1300, 80}};
+constexpr SoundStep SOUND_CLEAN[] = {{1700, 40}, {0, 20}, {2100, 65}};
+constexpr SoundStep SOUND_REST[] = {{700, 70}, {0, 35}, {550, 100}};
 
 struct SoundPlayer {
   const SoundStep* steps = nullptr;
@@ -90,10 +109,14 @@ unsigned long sleepNoticeStartedAt = 0;
 unsigned long lastHungerTick = 0;
 unsigned long lastHappyTick = 0;
 unsigned long lastHealthTick = 0;
+unsigned long lastCleanlinessTick = 0;
 unsigned long screenTimer = 0;
+unsigned long menuTitleShownAt = 0;
 constexpr unsigned long HUNGER_INTERVAL = 10000;
 constexpr unsigned long HAPPY_INTERVAL = 15000;
 constexpr unsigned long HEALTH_INTERVAL = 12000;
+constexpr unsigned long CLEANLINESS_INTERVAL = 20000;
+constexpr unsigned long MENU_TITLE_DURATION = 1000;
 
 unsigned long lastAnimTick = 0;
 unsigned long lastMoveTick = 0;
@@ -110,6 +133,7 @@ bool creatureBlink = false;
 unsigned long blinkStart = 0;
 bool idleFrame = false;
 bool actionFrame = false;
+bool medicineHelped = false;
 
 bool savePending = false;
 unsigned long saveRequestedAt = 0;
@@ -134,6 +158,7 @@ bool saveCurrentPet() {
       static_cast<uint8_t>(pet.hunger),
       static_cast<uint8_t>(pet.happiness),
       static_cast<uint8_t>(pet.health),
+      static_cast<uint8_t>(pet.cleanliness),
       petAgeMs(),
   };
   if (!savePetSave(data)) {
@@ -222,6 +247,9 @@ void soundOk() { playSound(SOUND_OK, sizeof(SOUND_OK) / sizeof(SOUND_OK[0])); }
 void soundFood() { queueSound(SOUND_FOOD, sizeof(SOUND_FOOD) / sizeof(SOUND_FOOD[0])); }
 void soundPlay() { queueSound(SOUND_PLAY, sizeof(SOUND_PLAY) / sizeof(SOUND_PLAY[0])); }
 void soundWake() { playSound(SOUND_WAKE, sizeof(SOUND_WAKE) / sizeof(SOUND_WAKE[0])); }
+void soundMedicine() { queueSound(SOUND_MEDICINE, sizeof(SOUND_MEDICINE) / sizeof(SOUND_MEDICINE[0])); }
+void soundClean() { queueSound(SOUND_CLEAN, sizeof(SOUND_CLEAN) / sizeof(SOUND_CLEAN[0])); }
+void soundRest() { queueSound(SOUND_REST, sizeof(SOUND_REST) / sizeof(SOUND_REST[0])); }
 
 void goToScreen(ScreenState newScreen);
 
@@ -243,9 +271,38 @@ void drawMainMenuItem(int x, const char* label, bool selected) {
 void drawMainMenu() {
   display.setTextColor(SSD1306_WHITE);
   display.setTextSize(1);
-  drawMainMenuItem(0, "FOOD", selectedMenu == MENU_FOOD);
-  drawMainMenuItem(43, "PLAY", selectedMenu == MENU_PLAY);
-  drawMainMenuItem(86, "STAT", selectedMenu == MENU_STATUS);
+  drawMainMenuItem(0, "FD", selectedMenu == MENU_FOOD);
+  drawMainMenuItem(21, "PL", selectedMenu == MENU_PLAY);
+  drawMainMenuItem(42, "MD", selectedMenu == MENU_MEDICINE);
+  drawMainMenuItem(63, "CL", selectedMenu == MENU_CLEAN);
+  drawMainMenuItem(84, "SL", selectedMenu == MENU_SLEEP);
+  drawMainMenuItem(105, "ST", selectedMenu == MENU_STATUS);
+}
+
+const char* menuTitle(MenuItem menu) {
+  switch (menu) {
+    case MENU_FOOD: return "FOOD";
+    case MENU_PLAY: return "PLAY";
+    case MENU_MEDICINE: return "MEDICINE";
+    case MENU_CLEAN: return "CLEAN";
+    case MENU_SLEEP: return "SLEEP";
+    case MENU_STATUS: return "STATUS";
+  }
+  return "";
+}
+
+void drawCenteredText(const char* text, int yPosition) {
+  int16_t x;
+  int16_t y;
+  uint16_t width;
+  uint16_t height;
+  display.getTextBounds(text, 0, yPosition, &x, &y, &width, &height);
+  display.setCursor((SCREEN_WIDTH - width) / 2, yPosition);
+  display.print(text);
+}
+
+void drawMenuTitle(MenuItem menu) {
+  drawCenteredText(menuTitle(menu), 16);
 }
 
 void drawCreature(int x, int y, bool blink = false,
@@ -412,7 +469,10 @@ void updateBootAnimation() {
 void drawMainScreen() {
   display.clearDisplay();
   drawMainMenu();
-  drawCreature(creatureX, 20, creatureBlink, EXPRESSION_AUTO, true);
+  if (millis() - menuTitleShownAt < MENU_TITLE_DURATION) {
+    drawMenuTitle(selectedMenu);
+  }
+  drawCreature(creatureX, 24, creatureBlink, EXPRESSION_AUTO, true);
   display.display();
 }
 
@@ -439,25 +499,64 @@ void drawPlayScreen() {
   display.display();
 }
 
+void drawMedicineScreen() {
+  display.clearDisplay();
+  drawMainMenu();
+  const unsigned char* medicineSprite =
+      actionFrame ? dragon_medicine_02 : dragon_medicine_01;
+  display.drawBitmap(44, 24, medicineSprite,
+                     DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
+  display.setTextSize(1);
+  drawCenteredText(medicineHelped ? "FEEL BETTER!" : "NO MEDICINE", 16);
+  display.display();
+}
+
+void drawCleanScreen() {
+  display.clearDisplay();
+  drawMainMenu();
+  const unsigned char* cleanSprite = actionFrame ? dragon_clean_02 : dragon_clean_01;
+  display.drawBitmap(44, 24, cleanSprite,
+                     DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
+  display.setTextSize(1);
+  drawCenteredText("ALL CLEAN!", 16);
+  display.display();
+}
+
+void drawRestScreen() {
+  display.clearDisplay();
+  drawMainMenu();
+  const unsigned char* sleepSprite = actionFrame ? dragon_sleep_02 : dragon_sleep_01;
+  display.drawBitmap(44, 24, sleepSprite,
+                     DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
+  display.setTextSize(1);
+  drawCenteredText("Zzz...", 16);
+  display.display();
+}
+
 void drawStatusScreen() {
   display.clearDisplay();
   drawMainMenu();
   display.setTextSize(1);
-  display.setCursor(5, 21); display.print("Food : "); display.print(pet.hunger);
-  display.setCursor(5, 31); display.print("Happy: "); display.print(pet.happiness);
-  display.setCursor(5, 41); display.print("HP   : "); display.print(pet.health);
-  display.setCursor(5, 51); display.print("Age  : "); display.print(petAgeMinutes()); display.print(" min");
+  display.setCursor(3, 18); display.print("FOOD "); display.print(pet.hunger);
+  display.setCursor(70, 18); display.print("HAPPY "); display.print(pet.happiness);
+  display.setCursor(3, 33); display.print("HP "); display.print(pet.health);
+  display.setCursor(70, 33); display.print("CLEAN "); display.print(pet.cleanliness);
+  display.setCursor(35, 49); display.print("AGE "); display.print(petAgeMinutes()); display.print(" MIN");
   display.display();
 }
 
 void goToScreen(ScreenState newScreen) {
   currentScreen = newScreen;
   screenTimer = millis();
+  if (newScreen == SCREEN_MAIN) menuTitleShownAt = screenTimer;
   if (newScreen == SCREEN_FOOD || newScreen == SCREEN_PLAY) actionFrame = false;
   switch (currentScreen) {
     case SCREEN_MAIN: drawMainScreen(); break;
     case SCREEN_FOOD: drawFoodScreen(); break;
     case SCREEN_PLAY: drawPlayScreen(); break;
+    case SCREEN_MEDICINE: drawMedicineScreen(); break;
+    case SCREEN_CLEAN: drawCleanScreen(); break;
+    case SCREEN_REST: drawRestScreen(); break;
     case SCREEN_STATUS: drawStatusScreen(); break;
   }
 }
@@ -477,6 +576,33 @@ void playWithPet() {
   goToScreen(SCREEN_PLAY);
 }
 
+void giveMedicine() {
+  medicineHelped = pet.health < 70;
+  if (medicineHelped) {
+    pet.health = clampStat(pet.health + 25);
+    pet.happiness = clampStat(pet.happiness - 2);
+    markPetDirty();
+  }
+  soundMedicine();
+  goToScreen(SCREEN_MEDICINE);
+}
+
+void cleanPet() {
+  pet.cleanliness = clampStat(pet.cleanliness + 40);
+  markPetDirty();
+  soundClean();
+  goToScreen(SCREEN_CLEAN);
+}
+
+void letPetRest() {
+  pet.happiness = clampStat(pet.happiness + 8);
+  pet.health = clampStat(pet.health + 5);
+  pet.hunger = clampStat(pet.hunger - 2);
+  markPetDirty();
+  soundRest();
+  goToScreen(SCREEN_REST);
+}
+
 void updateSimulation() {
   unsigned long now = millis();
   bool petChanged = false;
@@ -492,10 +618,17 @@ void updateSimulation() {
     petChanged = true;
     Serial.print("Happy: "); Serial.println(pet.happiness);
   }
+  if (now - lastCleanlinessTick >= CLEANLINESS_INTERVAL) {
+    lastCleanlinessTick = now;
+    pet.cleanliness = clampStat(pet.cleanliness - 1);
+    petChanged = true;
+    Serial.print("Cleanliness: "); Serial.println(pet.cleanliness);
+  }
   if (now - lastHealthTick >= HEALTH_INTERVAL) {
     lastHealthTick = now;
     if (pet.hunger < 25) pet.health--;
     if (pet.happiness < 20) pet.health--;
+    if (pet.cleanliness < 25) pet.health--;
     pet.health = clampStat(pet.health);
     petChanged = true;
     Serial.print("Health: "); Serial.println(pet.health);
@@ -537,15 +670,20 @@ void updateCreatureAnimation() {
   if (currentScreen == SCREEN_MAIN) drawMainScreen();
   else if (currentScreen == SCREEN_FOOD) drawFoodScreen();
   else if (currentScreen == SCREEN_PLAY) drawPlayScreen();
+  else if (currentScreen == SCREEN_MEDICINE) drawMedicineScreen();
+  else if (currentScreen == SCREEN_CLEAN) drawCleanScreen();
+  else if (currentScreen == SCREEN_REST) drawRestScreen();
 }
 
 void updateScreenState() {
   unsigned long now = millis();
-  if ((currentScreen == SCREEN_FOOD || currentScreen == SCREEN_PLAY) &&
+  if ((currentScreen == SCREEN_FOOD || currentScreen == SCREEN_PLAY ||
+       currentScreen == SCREEN_MEDICINE || currentScreen == SCREEN_CLEAN ||
+       currentScreen == SCREEN_REST) &&
       now - screenTimer >= ACTION_SCREEN_DURATION) {
     goToScreen(SCREEN_MAIN);
   }
-  if (currentScreen == SCREEN_STATUS && now - screenTimer >= 2500) {
+  if (currentScreen == SCREEN_STATUS && now - screenTimer >= STATUS_SCREEN_DURATION) {
     goToScreen(SCREEN_MAIN);
   }
 }
@@ -581,6 +719,7 @@ void handleButtons() {
       int menu = static_cast<int>(selectedMenu) - 1;
       if (menu < 0) menu = MENU_COUNT - 1;
       selectedMenu = static_cast<MenuItem>(menu);
+      menuTitleShownAt = now;
       drawMainScreen();
     }
     if (rightPressed) {
@@ -588,6 +727,7 @@ void handleButtons() {
       int menu = static_cast<int>(selectedMenu) + 1;
       if (menu >= MENU_COUNT) menu = 0;
       selectedMenu = static_cast<MenuItem>(menu);
+      menuTitleShownAt = now;
       drawMainScreen();
     }
     if (okPressed) {
@@ -595,6 +735,9 @@ void handleButtons() {
       switch (selectedMenu) {
         case MENU_FOOD: feedPet(); break;
         case MENU_PLAY: playWithPet(); break;
+        case MENU_MEDICINE: giveMedicine(); break;
+        case MENU_CLEAN: cleanPet(); break;
+        case MENU_SLEEP: letPetRest(); break;
         case MENU_STATUS: goToScreen(SCREEN_STATUS); break;
       }
     }
@@ -629,6 +772,7 @@ void setup() {
     pet.hunger = restoredData.hunger;
     pet.happiness = restoredData.happiness;
     pet.health = restoredData.health;
+    pet.cleanliness = restoredData.cleanliness;
     pet.birthTime = now - restoredData.ageMs;
     Serial.println("Pet restored");
   } else {
@@ -638,6 +782,7 @@ void setup() {
   lastHungerTick = now;
   lastHappyTick = now;
   lastHealthTick = now;
+  lastCleanlinessTick = now;
   lastAnimTick = now;
   lastMoveTick = now;
   lastBlinkTick = now;

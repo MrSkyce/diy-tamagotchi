@@ -164,6 +164,75 @@ def food_dragon(frame: int) -> Canvas:
     return canvas
 
 
+def medicine_dragon(frame: int) -> Canvas:
+    canvas = base_dragon()
+    face(canvas, "happy")
+    # A clear medicine bottle sits beside the dragon; the cross changes
+    # position so it feels like it is being presented rather than overlaid.
+    if frame == 0:
+        canvas.line(31, 22, 36, 22)
+        canvas.line(32, 20, 35, 20)
+        canvas.line(31, 22, 31, 30)
+        canvas.line(36, 22, 36, 30)
+        canvas.line(31, 30, 36, 30)
+        canvas.line(33, 24, 35, 24)
+        canvas.line(34, 23, 34, 25)
+        canvas.line(28, 29, 32, 27)
+    else:
+        canvas.line(30, 20, 35, 20)
+        canvas.line(31, 18, 34, 18)
+        canvas.line(30, 20, 30, 28)
+        canvas.line(35, 20, 35, 28)
+        canvas.line(30, 28, 35, 28)
+        canvas.line(32, 22, 34, 22)
+        canvas.line(33, 21, 33, 23)
+        canvas.line(28, 29, 31, 25)
+    return canvas
+
+
+def clean_dragon(frame: int) -> Canvas:
+    canvas = base_dragon()
+    face(canvas, "happy")
+    # A long-handled brush and two bubbles make CLEAN recognizable at OLED size.
+    if frame == 0:
+        canvas.line(30, 19, 36, 31)
+        canvas.line(34, 29, 38, 31)
+        canvas.line(34, 30, 37, 33)
+        canvas.ellipse(9, 12, 2, 2)
+        canvas.ellipse(6, 17, 1.5, 1.5)
+        canvas.line(27, 29, 31, 26)
+    else:
+        canvas.line(28, 20, 34, 32)
+        canvas.line(32, 30, 37, 32)
+        canvas.line(33, 31, 36, 34)
+        canvas.ellipse(10, 10, 2, 2)
+        canvas.ellipse(7, 14, 1.5, 1.5)
+        canvas.line(27, 29, 29, 25)
+    return canvas
+
+
+def sleep_dragon(frame: int) -> Canvas:
+    canvas = base_dragon()
+    face(canvas, "sleeping")
+    # Two drifting Z marks give the otherwise quiet sleep pose a gentle cycle.
+    if frame == 0:
+        canvas.line(31, 10, 36, 10)
+        canvas.line(36, 10, 31, 15)
+        canvas.line(31, 15, 36, 15)
+        canvas.line(34, 5, 38, 5)
+        canvas.line(38, 5, 34, 9)
+        canvas.line(34, 9, 38, 9)
+    else:
+        canvas.line(30, 8, 35, 8)
+        canvas.line(35, 8, 30, 13)
+        canvas.line(30, 13, 35, 13)
+        canvas.line(33, 3, 37, 3)
+        canvas.line(37, 3, 33, 7)
+        canvas.line(33, 7, 37, 7)
+        canvas.line(13, 35, 11, 37)
+    return canvas
+
+
 def write_bmp(path: Path, canvas: Canvas) -> None:
     row_bytes = ((SIZE + 31) // 32) * 4
     pixel_offset = 14 + 40 + 8
@@ -206,6 +275,9 @@ def main() -> None:
             write_bmp(ASSETS_DIR / f"dragon_walk_{direction}_{step + 1:02}.bmp", dragon)
     for frame in range(2):
         write_bmp(ASSETS_DIR / f"dragon_food_{frame + 1:02}.bmp", food_dragon(frame))
+        write_bmp(ASSETS_DIR / f"dragon_medicine_{frame + 1:02}.bmp", medicine_dragon(frame))
+        write_bmp(ASSETS_DIR / f"dragon_clean_{frame + 1:02}.bmp", clean_dragon(frame))
+        write_bmp(ASSETS_DIR / f"dragon_sleep_{frame + 1:02}.bmp", sleep_dragon(frame))
     print("Generated original outline dragon draft BMP sprites")
 
 
