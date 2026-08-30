@@ -57,6 +57,7 @@ constexpr SoundStep SOUND_PLAY[] = {
 constexpr SoundStep SOUND_BIRTH[] = {
     {800, 110}, {0, 30}, {1050, 110}, {0, 30},
     {1350, 110}, {0, 30}, {1750, 180}, {0, 40}};
+constexpr SoundStep SOUND_WAKE[] = {{1400, 60}, {0, 40}, {1900, 90}};
 
 struct SoundPlayer {
   const SoundStep* steps = nullptr;
@@ -69,10 +70,15 @@ struct SoundPlayer {
 };
 SoundPlayer soundPlayer;
 
-enum BootPhase { BOOT_EGG, BOOT_CRACKED_EGG, BOOT_CLEAR, BOOT_HELLO, BOOT_DONE };
-BootPhase bootPhase = BOOT_EGG;
+enum BootPhase { BOOT_EGG_ROLL, BOOT_CRACKED_EGG, BOOT_CLEAR, BOOT_HELLO, BOOT_DONE };
+BootPhase bootPhase = BOOT_EGG_ROLL;
 unsigned long bootPhaseStartedAt = 0;
 int bootFrame = 0;
+int bootEggX = 4;
+bool wokeFromDeepSleep = false;
+constexpr int BOOT_EGG_Y = 28;
+constexpr int BOOT_EGG_END_X = SCREEN_WIDTH - EGG_SPRITE_WIDTH;
+constexpr unsigned long BOOT_EGG_ROLL_INTERVAL = 60;
 
 enum PowerState { POWER_ACTIVE, POWER_PREPARING_SLEEP };
 PowerState powerState = POWER_ACTIVE;
@@ -212,16 +218,17 @@ void soundMenu() { tone(BUZZER_PIN, 1800, 30); }
 void soundOk() { playSound(SOUND_OK, sizeof(SOUND_OK) / sizeof(SOUND_OK[0])); }
 void soundFood() { queueSound(SOUND_FOOD, sizeof(SOUND_FOOD) / sizeof(SOUND_FOOD[0])); }
 void soundPlay() { queueSound(SOUND_PLAY, sizeof(SOUND_PLAY) / sizeof(SOUND_PLAY[0])); }
+void soundWake() { playSound(SOUND_WAKE, sizeof(SOUND_WAKE) / sizeof(SOUND_WAKE[0])); }
 
 void goToScreen(ScreenState newScreen);
 
-void drawHeader(const char* rightText) {
+void drawHeader(const char* screenLabel) {
   display.setTextColor(SSD1306_WHITE);
   display.setTextSize(1);
   display.setCursor(2, 4);
-  display.print("TAMAGOTCHI");
-  display.setCursor(100, 4);
-  display.print(rightText);
+  display.print(screenLabel);
+  display.setCursor(SCREEN_WIDTH - 24, 4);
+  display.print(FIRMWARE_VERSION);
 }
 
 void drawMainMenuItem(int x, const char* label, bool selected) {
@@ -252,40 +259,20 @@ void drawCreature(int x, int y, bool blink = false,
   display.drawBitmap(x, y, sprite, DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
 }
 
-void drawEgg(int x, int y) {
-  display.fillCircle(x + 12, y + 8, 7, SSD1306_WHITE);
-  display.fillCircle(x + 12, y + 16, 10, SSD1306_WHITE);
-  display.fillRect(x + 3, y + 8, 18, 9, SSD1306_WHITE);
-  display.drawPixel(x + 9, y + 6, SSD1306_BLACK);
-  display.drawPixel(x + 8, y + 8, SSD1306_BLACK);
-  display.drawPixel(x + 8, y + 10, SSD1306_BLACK);
-  display.drawPixel(x + 9, y + 12, SSD1306_BLACK);
-}
-
-void drawCrackedEgg(int x, int y) {
-  drawEgg(x, y);
-  display.drawLine(x + 5, y + 15, x + 9, y + 12, SSD1306_BLACK);
-  display.drawLine(x + 9, y + 12, x + 12, y + 16, SSD1306_BLACK);
-  display.drawLine(x + 12, y + 16, x + 16, y + 12, SSD1306_BLACK);
-  display.drawLine(x + 16, y + 12, x + 20, y + 15, SSD1306_BLACK);
-}
-
-void drawBootEggFrame(int frame) {
-  const int x = 52;
-  const int y = 26;
+void drawBootEggFrame() {
   display.clearDisplay();
   drawHeader("EGG");
-  int dx = 0;
-  if (frame % 4 == 0) dx = -2;
-  else if (frame % 4 == 2) dx = 2;
-  drawEgg(x + dx, y);
+  const unsigned char* egg = bootFrame % 2 == 0 ? egg_roll_01 : egg_roll_02;
+  display.drawBitmap(bootEggX, BOOT_EGG_Y, egg,
+                     EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT, SSD1306_WHITE);
   display.display();
 }
 
 void drawBootCrackedEgg() {
   display.clearDisplay();
   drawHeader("EGG");
-  drawCrackedEgg(52, 26);
+  display.drawBitmap(BOOT_EGG_END_X, BOOT_EGG_Y, egg_cracked,
+                     EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT, SSD1306_WHITE);
   display.display();
 }
 
@@ -310,10 +297,18 @@ void drawSleepScreen() {
 }
 
 void startBootAnimation() {
-  bootPhase = BOOT_EGG;
   bootPhaseStartedAt = millis();
   bootFrame = 0;
-  drawBootEggFrame(bootFrame);
+  if (wokeFromDeepSleep) {
+    bootPhase = BOOT_HELLO;
+    drawBootHello();
+    soundWake();
+    return;
+  }
+
+  bootPhase = BOOT_EGG_ROLL;
+  bootEggX = 4;
+  drawBootEggFrame();
 }
 
 void enterDeepSleep() {
@@ -355,15 +350,17 @@ void updatePowerManagement() {
 void updateBootAnimation() {
   const unsigned long now = millis();
   switch (bootPhase) {
-    case BOOT_EGG:
-      if (now - bootPhaseStartedAt >= 160) {
-        bootPhaseStartedAt += 160;
-        if (++bootFrame < 10) drawBootEggFrame(bootFrame);
-        else {
+    case BOOT_EGG_ROLL:
+      if (now - bootPhaseStartedAt >= BOOT_EGG_ROLL_INTERVAL) {
+        bootPhaseStartedAt += BOOT_EGG_ROLL_INTERVAL;
+        bootFrame++;
+        bootEggX += 2;
+        if (bootEggX >= BOOT_EGG_END_X) {
+          bootEggX = BOOT_EGG_END_X;
           bootPhase = BOOT_CRACKED_EGG;
           bootFrame = 0;
           drawBootCrackedEgg();
-        }
+        } else drawBootEggFrame();
       }
       break;
     case BOOT_CRACKED_EGG:
@@ -409,20 +406,20 @@ void drawMainScreen() {
 void drawFoodScreen() {
   display.clearDisplay();
   drawMainMenu();
-  drawCreature(44, 16, false, EXPRESSION_HAPPY);
+  drawCreature(44, 20, false, EXPRESSION_HAPPY);
   display.setTextSize(1);
-  display.setCursor(35, 56);
-  display.print("Nom nom!");
+  display.setCursor(4, 40);
+  display.print("MIAM!");
   display.display();
 }
 
 void drawPlayScreen() {
   display.clearDisplay();
   drawMainMenu();
-  drawCreature(44, 16, false, EXPRESSION_HAPPY);
+  drawCreature(44, 20, false, EXPRESSION_HAPPY);
   display.setTextSize(1);
-  display.setCursor(43, 56);
-  display.print("Wheee!");
+  display.setCursor(94, 40);
+  display.print("YAY!");
   display.display();
 }
 
@@ -584,7 +581,9 @@ void handleButtons() {
 
 void setup() {
   Serial.begin(115200);
-  Serial.printf("Wake cause: %d\n", esp_sleep_get_wakeup_cause());
+  const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
+  wokeFromDeepSleep = wakeCause != ESP_SLEEP_WAKEUP_UNDEFINED;
+  Serial.printf("Wake cause: %d\n", wakeCause);
   Wire.begin(SDA_PIN, SCL_PIN);
   if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
     Serial.println("OLED error");

@@ -55,6 +55,13 @@ graphique dans une revue Git.
 Le prototype 40×40 se promène actuellement entre les marges de la zone bleue,
 avec un déplacement d'un pixel toutes les 120 ms. Les prochaines frames
 pourront transformer ce déplacement en marche plus caractérisée.
+
+Les messages d'action sont placés dans les marges latérales bleues afin que le
+dragon conserve la même ligne de sol sur l'écran principal, FOOD et PLAY.
+
+L'œuf de démarrage est également précompilé depuis `assets/boot/`. Il roule
+vers la bordure droite avant de se fissurer ; un réveil deep sleep saute cette
+animation et joue une courte mélodie de retour.
 5. Documenter l'export des BMP et la convention de nommage dans le README.
 
 ## Validation

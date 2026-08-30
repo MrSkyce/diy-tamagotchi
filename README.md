@@ -1,6 +1,8 @@
 # Tamagotchi ESP32-C3
 
 Prototype de Tamagotchi DIY basé sur ESP32-C3, OLED 128×64, trois boutons et buzzer passif.
+Le firmware affiche actuellement la version `v0.5` dans le coin supérieur droit
+des écrans de transition.
 
 ## V0.4 : projet PlatformIO
 
@@ -72,3 +74,6 @@ plus 128×48 px. Un pixel clair est affiché sur l'OLED ; un pixel sombre est
 transparent. Chaque frame d'animation est un fichier distinct, par exemple
 `dragon_idle1.bmp` et `dragon_idle2.bmp`. PlatformIO régénère automatiquement
 `include/generated_sprites.h` avant chaque compilation.
+
+Les assets de démarrage suivent le même principe dans `assets/boot/` : les
+frames d'œuf sont des BMP 24×24, indépendants des sprites dragon 40×40.
