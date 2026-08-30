@@ -18,6 +18,14 @@ class Canvas:
         if 0 <= x < SIZE and 0 <= y < SIZE:
             self.pixels[y][x] = True
 
+    def mirror(self) -> "Canvas":
+        mirrored = Canvas()
+        for y, row in enumerate(self.pixels):
+            for x, pixel in enumerate(row):
+                if pixel:
+                    mirrored.set(SIZE - 1 - x, y)
+        return mirrored
+
     def line(self, x0: int, y0: int, x1: int, y1: int) -> None:
         dx, dy = abs(x1 - x0), -abs(y1 - y0)
         sx, sy = (1 if x0 < x1 else -1), (1 if y0 < y1 else -1)
@@ -48,7 +56,7 @@ class Canvas:
                     self.set(x, y)
 
 
-def base_dragon() -> Canvas:
+def base_dragon(walking: bool = False) -> Canvas:
     canvas = Canvas()
     # Horns and head: a large airy outline, not a filled silhouette.
     canvas.line(10, 9, 11, 3)
@@ -59,10 +67,11 @@ def base_dragon() -> Canvas:
 
     # Small body, feet, wing and curled tail.
     canvas.ellipse(20, 34, 8, 4)
-    canvas.line(14, 35, 12, 38)
-    canvas.line(12, 38, 17, 38)
-    canvas.line(26, 35, 28, 38)
-    canvas.line(28, 38, 33, 38)
+    if not walking:
+        canvas.line(14, 35, 12, 38)
+        canvas.line(12, 38, 17, 38)
+        canvas.line(26, 35, 28, 38)
+        canvas.line(28, 38, 33, 38)
     canvas.line(13, 28, 7, 25)
     canvas.line(7, 25, 9, 33)
     canvas.line(9, 33, 14, 31)
@@ -116,6 +125,45 @@ def face(canvas: Canvas, mood: str) -> None:
         canvas.ellipse(20, 23, 4, 2)
 
 
+def walking_dragon(step: int, facing_right: bool) -> Canvas:
+    canvas = base_dragon(walking=True)
+    # Alternating feet turn the horizontal glide into a readable walk cycle.
+    if step == 0:
+        canvas.line(15, 35, 12, 39)
+        canvas.line(12, 39, 17, 39)
+        canvas.line(25, 35, 28, 37)
+        canvas.line(28, 37, 33, 37)
+    else:
+        canvas.line(15, 35, 12, 37)
+        canvas.line(12, 37, 17, 37)
+        canvas.line(25, 35, 28, 39)
+        canvas.line(28, 39, 33, 39)
+        canvas.line(8, 25, 10, 32)
+    face(canvas, "idle")
+    return canvas if facing_right else canvas.mirror()
+
+
+def food_dragon(frame: int) -> Canvas:
+    canvas = base_dragon()
+    face(canvas, "happy")
+    # Large filled paws sweep across the belly in alternating positions.
+    if frame == 0:
+        canvas.line(10, 28, 15, 31)
+        canvas.line(15, 31, 20, 33)
+        canvas.fill_ellipse(20, 33, 2, 1.4)
+        canvas.line(30, 30, 26, 32)
+        canvas.fill_ellipse(25, 32, 2, 1.4)
+        canvas.line(22, 35, 24, 35)
+    else:
+        canvas.line(10, 30, 14, 32)
+        canvas.fill_ellipse(15, 32, 2, 1.4)
+        canvas.line(30, 28, 25, 31)
+        canvas.line(25, 31, 20, 33)
+        canvas.fill_ellipse(20, 33, 2, 1.4)
+        canvas.line(16, 35, 18, 35)
+    return canvas
+
+
 def write_bmp(path: Path, canvas: Canvas) -> None:
     row_bytes = ((SIZE + 31) // 32) * 4
     pixel_offset = 14 + 40 + 8
@@ -152,6 +200,12 @@ def main() -> None:
         if name == "dragon_idle2":
             dragon.line(34, 26, 37, 24)
         write_bmp(ASSETS_DIR / f"{name}.bmp", dragon)
+    for facing_right, direction in ((True, "right"), (False, "left")):
+        for step in range(2):
+            dragon = walking_dragon(step, facing_right)
+            write_bmp(ASSETS_DIR / f"dragon_walk_{direction}_{step + 1:02}.bmp", dragon)
+    for frame in range(2):
+        write_bmp(ASSETS_DIR / f"dragon_food_{frame + 1:02}.bmp", food_dragon(frame))
     print("Generated original outline dragon draft BMP sprites")
 
 

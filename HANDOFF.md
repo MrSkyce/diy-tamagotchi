@@ -205,10 +205,15 @@ Objectifs : extinction OLED, deep sleep, réveil bouton/timer, faible consommati
    - suivre le détail dans `GRAPHICS_PLAN.md`
 5. Moteur Tamagotchi plus riche : cleanliness, fatigue, weight, évolution
 6. Cycle de vie : œuf → bébé → jeune → adulte
+   - Le jeu pourra commencer à l'état œuf : il ne se nourrit pas encore, mais
+     doit être réchauffé par une interaction dédiée.
+   - Les interactions disponibles pourront évoluer avec l'âge du dragon.
 7. Persistance NVS versionnée
 8. Deep sleep + temps écoulé
 9. Batterie / indicateur / économie d'énergie
 10. PCB custom et boîtier imprimé 3D
+11. Explorer le Bluetooth de l'ESP32 pour permettre à deux dragons proches
+    d'échanger ou de « discuter ».
 
 ## Contraintes de reprise
 

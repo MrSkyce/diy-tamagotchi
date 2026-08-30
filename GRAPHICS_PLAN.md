@@ -46,22 +46,28 @@ graphique dans une revue Git.
 2. **Fait —** ajouter le répertoire d'assets, le convertisseur pré-build
    PlatformIO et migrer les sprites existants ; compiler pour vérifier la
    génération reproductible.
-3. **En cours —** tester le cadrage 40×40 avec les BMP migrés, puis redessiner
+3. **Fait —** tester le cadrage 40×40 avec les BMP migrés, puis redessiner
    les sprites avec des silhouettes originales et détourées : idle, blink,
    happy, hungry, sad, sick et sleeping.
-4. Ajouter les frames d'animation supplémentaires seulement après revue sur
-   l'OLED réelle : contraste, centrage, lisibilité à distance et fluidité.
+4. **En cours —** ajouter et revoir sur l'OLED réelle les frames de marche du
+   dragon (deux poses par direction) et les quatre poses de rotation de l'œuf :
+   contraste, centrage, lisibilité à distance et fluidité.
 
-Le prototype 40×40 se promène actuellement entre les marges de la zone bleue,
-avec un déplacement d'un pixel toutes les 120 ms. Les prochaines frames
-pourront transformer ce déplacement en marche plus caractérisée.
+Le dragon 40×40 se promène entre les marges de la zone bleue, avec un
+déplacement d'un pixel toutes les 120 ms. Les frames `dragon_walk_left_01/02`
+et `dragon_walk_right_01/02` alternent les pattes selon son sens de marche.
 
 Les messages d'action sont placés dans les marges latérales bleues afin que le
 dragon conserve la même ligne de sol sur l'écran principal, FOOD et PLAY.
+Pendant FOOD, deux frames BMP font frotter ses pattes sur son ventre ; pendant
+PLAY, le dragon joyeux saute entre `y = 20` et `y = 16`, sans empiéter sur le
+menu jaune.
 
-L'œuf de démarrage est également précompilé depuis `assets/boot/`. Il roule
-vers la bordure droite avant de se fissurer ; un réveil deep sleep saute cette
-animation et joue une courte mélodie de retour.
+L'œuf de démarrage est également précompilé depuis `assets/boot/`. Ses quatre
+frames de rotation le font rouler vers la bordure droite avant de se fissurer ;
+trois frames de casse ouvrent ensuite la coque avec des éclats, accompagnés
+d'un bref effet sonore. Un réveil deep sleep saute cette animation et joue une
+courte mélodie de retour.
 5. Documenter l'export des BMP et la convention de nommage dans le README.
 
 ## Validation

@@ -58,6 +58,8 @@ constexpr SoundStep SOUND_BIRTH[] = {
     {800, 110}, {0, 30}, {1050, 110}, {0, 30},
     {1350, 110}, {0, 30}, {1750, 180}, {0, 40}};
 constexpr SoundStep SOUND_WAKE[] = {{1400, 60}, {0, 40}, {1900, 90}};
+constexpr SoundStep SOUND_EGG_CRACK[] = {
+    {2300, 30}, {0, 25}, {1500, 45}, {0, 20}, {700, 80}};
 
 struct SoundPlayer {
   const SoundStep* steps = nullptr;
@@ -107,6 +109,7 @@ bool creatureMoveRight = true;
 bool creatureBlink = false;
 unsigned long blinkStart = 0;
 bool idleFrame = false;
+bool actionFrame = false;
 
 bool savePending = false;
 unsigned long saveRequestedAt = 0;
@@ -246,7 +249,8 @@ void drawMainMenu() {
 }
 
 void drawCreature(int x, int y, bool blink = false,
-                  CreatureExpression expression = EXPRESSION_AUTO) {
+                  CreatureExpression expression = EXPRESSION_AUTO,
+                  bool walking = false) {
   const unsigned char* sprite;
   if (expression == EXPRESSION_HAPPY) sprite = dragon_happy;
   else if (expression == EXPRESSION_SLEEPING) sprite = dragon_sleeping;
@@ -254,6 +258,11 @@ void drawCreature(int x, int y, bool blink = false,
   else if (pet.hunger < 25) sprite = dragon_hungry;
   else if (pet.happiness < 25) sprite = dragon_sad;
   else if (blink) sprite = dragon_blink;
+  else if (walking && creatureMoveRight) {
+    sprite = idleFrame ? dragon_walk_right_02 : dragon_walk_right_01;
+  } else if (walking) {
+    sprite = idleFrame ? dragon_walk_left_02 : dragon_walk_left_01;
+  }
   else if (idleFrame) sprite = dragon_idle2;
   else sprite = dragon_idle1;
   display.drawBitmap(x, y, sprite, DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
@@ -262,7 +271,9 @@ void drawCreature(int x, int y, bool blink = false,
 void drawBootEggFrame() {
   display.clearDisplay();
   drawHeader("EGG");
-  const unsigned char* egg = bootFrame % 2 == 0 ? egg_roll_01 : egg_roll_02;
+  const unsigned char* eggFrames[] = {
+      egg_roll_01, egg_roll_02, egg_roll_03, egg_roll_04};
+  const unsigned char* egg = eggFrames[bootFrame % 4];
   display.drawBitmap(bootEggX, BOOT_EGG_Y, egg,
                      EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT, SSD1306_WHITE);
   display.display();
@@ -271,7 +282,8 @@ void drawBootEggFrame() {
 void drawBootCrackedEgg() {
   display.clearDisplay();
   drawHeader("EGG");
-  display.drawBitmap(BOOT_EGG_END_X, BOOT_EGG_Y, egg_cracked,
+  const unsigned char* crackFrames[] = {egg_crack_01, egg_crack_02, egg_cracked};
+  display.drawBitmap(BOOT_EGG_END_X, BOOT_EGG_Y, crackFrames[bootFrame],
                      EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT, SSD1306_WHITE);
   display.display();
 }
@@ -360,6 +372,7 @@ void updateBootAnimation() {
           bootPhase = BOOT_CRACKED_EGG;
           bootFrame = 0;
           drawBootCrackedEgg();
+          playSound(SOUND_EGG_CRACK, sizeof(SOUND_EGG_CRACK) / sizeof(SOUND_EGG_CRACK[0]));
         } else drawBootEggFrame();
       }
       break;
@@ -399,14 +412,17 @@ void updateBootAnimation() {
 void drawMainScreen() {
   display.clearDisplay();
   drawMainMenu();
-  drawCreature(creatureX, 20, creatureBlink);
+  drawCreature(creatureX, 20, creatureBlink, EXPRESSION_AUTO, true);
   display.display();
 }
 
 void drawFoodScreen() {
   display.clearDisplay();
   drawMainMenu();
-  drawCreature(44, 20, false, EXPRESSION_HAPPY);
+  const bool foodFrame = ((millis() - screenTimer) / 300) % 2 != 0;
+  const unsigned char* foodSprite = foodFrame ? dragon_food_02 : dragon_food_01;
+  display.drawBitmap(44, 20, foodSprite,
+                     DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
   display.setTextSize(1);
   display.setCursor(4, 40);
   display.print("MIAM!");
@@ -416,7 +432,7 @@ void drawFoodScreen() {
 void drawPlayScreen() {
   display.clearDisplay();
   drawMainMenu();
-  drawCreature(44, 20, false, EXPRESSION_HAPPY);
+  drawCreature(44, actionFrame ? 16 : 20, false, EXPRESSION_HAPPY);
   display.setTextSize(1);
   display.setCursor(94, 40);
   display.print("YAY!");
@@ -437,6 +453,7 @@ void drawStatusScreen() {
 void goToScreen(ScreenState newScreen) {
   currentScreen = newScreen;
   screenTimer = millis();
+  if (newScreen == SCREEN_FOOD || newScreen == SCREEN_PLAY) actionFrame = false;
   switch (currentScreen) {
     case SCREEN_MAIN: drawMainScreen(); break;
     case SCREEN_FOOD: drawFoodScreen(); break;
@@ -496,6 +513,7 @@ void updateCreatureAnimation() {
   }
   if (now - lastMoveTick >= CREATURE_MOVE_INTERVAL) {
     lastMoveTick = now;
+    actionFrame = !actionFrame;
     if (creatureMoveRight) {
       creatureX++;
       if (creatureX >= CREATURE_MAX_X) creatureMoveRight = false;
@@ -515,12 +533,16 @@ void updateCreatureAnimation() {
     creatureBlink = false;
     redraw = true;
   }
-  if (redraw && currentScreen == SCREEN_MAIN) drawMainScreen();
+  if (!redraw) return;
+  if (currentScreen == SCREEN_MAIN) drawMainScreen();
+  else if (currentScreen == SCREEN_FOOD) drawFoodScreen();
+  else if (currentScreen == SCREEN_PLAY) drawPlayScreen();
 }
 
 void updateScreenState() {
   unsigned long now = millis();
-  if ((currentScreen == SCREEN_FOOD || currentScreen == SCREEN_PLAY) && now - screenTimer >= 900) {
+  if ((currentScreen == SCREEN_FOOD || currentScreen == SCREEN_PLAY) &&
+      now - screenTimer >= ACTION_SCREEN_DURATION) {
     goToScreen(SCREEN_MAIN);
   }
   if (currentScreen == SCREEN_STATUS && now - screenTimer >= 2500) {
