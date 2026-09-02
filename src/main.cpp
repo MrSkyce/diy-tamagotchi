@@ -2,6 +2,8 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <Adafruit_ST7789.h>
+#include <SPI.h>
 #include <esp_sleep.h>
 #include <esp_system.h>
 
@@ -10,6 +12,14 @@
 #include "sprites.h"
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+Adafruit_ST7789 spiTft(&SPI, -1, TFT_DC_PIN, TFT_RST_PIN);
+
+void drawTftUi();
+
+void presentDisplay() {
+  display.display();
+  if (ENABLE_SPI_TFT_UI) drawTftUi();
+}
 
 enum LifeStage : uint8_t { STAGE_EGG, STAGE_BABY, STAGE_YOUNG, STAGE_ADULT };
 
@@ -189,6 +199,146 @@ const char* lifeStageLabel() {
     case STAGE_ADULT: return "ADULT";
   }
   return "?";
+}
+
+const char* tftScreenLabel() {
+  if (bootPhase != BOOT_DONE) return "DRAGON TAMAGOTCHI";
+  if (powerState == POWER_PREPARING_SLEEP) return "GOOD NIGHT";
+  switch (currentScreen) {
+    case SCREEN_MAIN: return "HOME";
+    case SCREEN_FOOD: return pet.lifeStage == STAGE_EGG ? "WARM" : "FOOD";
+    case SCREEN_PLAY: return "PLAY";
+    case SCREEN_MEDICINE: return "MEDICINE";
+    case SCREEN_CLEAN: return "CLEAN";
+    case SCREEN_REST: return "SLEEP";
+    case SCREEN_STATUS: return "STATUS";
+  }
+  return "";
+}
+
+constexpr uint16_t TFT_UI_BACKGROUND = 0x0841;
+
+uint16_t tftAccentColor() {
+  if (bootPhase != BOOT_DONE) return ST77XX_MAGENTA;
+  switch (currentScreen) {
+    case SCREEN_MAIN: return ST77XX_CYAN;
+    case SCREEN_FOOD: return 0xFD20; // orange
+    case SCREEN_PLAY: return ST77XX_MAGENTA;
+    case SCREEN_MEDICINE: return ST77XX_RED;
+    case SCREEN_CLEAN: return 0x051F; // bleu clair
+    case SCREEN_REST: return 0x4810; // violet sombre
+    case SCREEN_STATUS: return ST77XX_GREEN;
+  }
+  return ST77XX_WHITE;
+}
+
+void drawTftCenteredText(const char* text, int16_t y, uint8_t size,
+                         uint16_t color) {
+  int16_t boundsX;
+  int16_t boundsY;
+  uint16_t width;
+  uint16_t height;
+  spiTft.setTextSize(size);
+  spiTft.getTextBounds(text, 0, y, &boundsX, &boundsY, &width, &height);
+  spiTft.setTextColor(color);
+  spiTft.setCursor((TFT_WIDTH - width) / 2, y);
+  spiTft.print(text);
+}
+
+void drawTftStat(const char* label, int value, int16_t x, int16_t y,
+                 uint16_t color) {
+  constexpr int16_t BAR_WIDTH = 100;
+  spiTft.fillRect(x, y, BAR_WIDTH, 8, TFT_UI_BACKGROUND);
+  spiTft.setTextSize(1);
+  spiTft.setTextColor(ST77XX_WHITE, TFT_UI_BACKGROUND);
+  spiTft.setCursor(x, y);
+  spiTft.print(label);
+  spiTft.setCursor(x + 78, y);
+  spiTft.print(value);
+  spiTft.drawRect(x, y + 10, BAR_WIDTH, 7, 0x7BEF);
+  spiTft.fillRect(x + 1, y + 11, BAR_WIDTH - 2, 5, ST77XX_BLACK);
+  spiTft.fillRect(x + 1, y + 11,
+                  static_cast<int32_t>(constrain(value, 0, 100)) *
+                      (BAR_WIDTH - 2) / 100,
+                  5, color);
+}
+
+void beginTftUi() {
+  spiTft.init(TFT_WIDTH, TFT_HEIGHT, SPI_MODE3);
+  // Rotation 0 conserve l'image retournee adaptee au montage sur breadboard
+  // et l'offset natif Adafruit de 80 lignes valide sur cette orientation.
+  spiTft.setRotation(0);
+  spiTft.invertDisplay(true);
+  spiTft.setSPISpeed(TFT_SPI_FREQUENCY);
+  spiTft.fillScreen(ST77XX_BLACK);
+}
+
+void drawTftUi() {
+  constexpr int16_t CONTENT_X = 8;
+  constexpr int16_t CONTENT_Y = 40;
+  constexpr int16_t CONTENT_WIDTH = 224;
+  constexpr int16_t CONTENT_HEIGHT = 112;
+  constexpr uint16_t PANEL_BACKGROUND = 0x0000;
+  static bool firstFrame = true;
+  static int lastHunger = -1;
+  static int lastHappiness = -1;
+  static int lastHealth = -1;
+  static int lastCleanliness = -1;
+  static int lastLifeStage = -1;
+
+  const uint16_t accent = tftAccentColor();
+  if (firstFrame) {
+    spiTft.fillScreen(TFT_UI_BACKGROUND);
+    firstFrame = false;
+  }
+  spiTft.fillRect(0, 0, TFT_WIDTH, 32, accent);
+  drawTftCenteredText(tftScreenLabel(), 9, 2, ST77XX_WHITE);
+  spiTft.setTextSize(1);
+  spiTft.setTextColor(ST77XX_WHITE);
+  spiTft.setCursor(TFT_WIDTH - 30, 22);
+  spiTft.print(FIRMWARE_VERSION);
+
+  uint16_t line[CONTENT_WIDTH];
+  const uint8_t* source = display.getBuffer();
+  for (int16_t targetY = 0; targetY < CONTENT_HEIGHT; ++targetY) {
+    const uint16_t sourceY =
+        static_cast<uint32_t>(targetY) * SCREEN_HEIGHT / CONTENT_HEIGHT;
+    for (int16_t targetX = 0; targetX < CONTENT_WIDTH; ++targetX) {
+      const uint16_t sourceX =
+          static_cast<uint32_t>(targetX) * SCREEN_WIDTH / CONTENT_WIDTH;
+      const uint8_t sourceByte =
+          source[sourceX + (sourceY / 8) * SCREEN_WIDTH];
+      line[targetX] = sourceByte & (1U << (sourceY & 7))
+                          ? accent
+                          : PANEL_BACKGROUND;
+    }
+    spiTft.drawRGBBitmap(CONTENT_X, CONTENT_Y + targetY, line,
+                         CONTENT_WIDTH, 1);
+  }
+  spiTft.drawRect(CONTENT_X - 1, CONTENT_Y - 1, CONTENT_WIDTH + 2,
+                  CONTENT_HEIGHT + 2, accent);
+
+  if (pet.hunger != lastHunger) {
+    drawTftStat("FOOD", pet.hunger, 8, 164, 0xFD20);
+    lastHunger = pet.hunger;
+  }
+  if (pet.happiness != lastHappiness) {
+    drawTftStat("HAPPY", pet.happiness, 126, 164, ST77XX_MAGENTA);
+    lastHappiness = pet.happiness;
+  }
+  if (pet.health != lastHealth) {
+    drawTftStat("HP", pet.health, 8, 195, ST77XX_RED);
+    lastHealth = pet.health;
+  }
+  if (pet.cleanliness != lastCleanliness) {
+    drawTftStat("CLEAN", pet.cleanliness, 126, 195, ST77XX_CYAN);
+    lastCleanliness = pet.cleanliness;
+  }
+  if (static_cast<int>(pet.lifeStage) != lastLifeStage) {
+    spiTft.fillRect(0, 224, TFT_WIDTH, 16, TFT_UI_BACKGROUND);
+    drawTftCenteredText(lifeStageLabel(), 226, 1, ST77XX_WHITE);
+    lastLifeStage = static_cast<int>(pet.lifeStage);
+  }
 }
 
 bool saveCurrentPet() {
@@ -381,7 +531,7 @@ void drawBootEggFrame() {
   const unsigned char* egg = eggFrames[bootFrame % 4];
   display.drawBitmap(bootEggX, BOOT_EGG_Y, egg,
                      EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT, SSD1306_WHITE);
-  display.display();
+  presentDisplay();
 }
 
 void drawBootCrackedEgg() {
@@ -389,7 +539,7 @@ void drawBootCrackedEgg() {
   const unsigned char* crackFrames[] = {egg_crack_01, egg_crack_02, egg_cracked};
   display.drawBitmap(BOOT_EGG_END_X, BOOT_EGG_Y, crackFrames[bootFrame],
                      EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT, SSD1306_WHITE);
-  display.display();
+  presentDisplay();
 }
 
 void drawBootHello() {
@@ -407,7 +557,7 @@ void drawBootHello() {
     display.setCursor(petRestored ? 28 : 44, 56);
     display.print(petRestored ? "Welcome back!" : "Hello!");
   }
-  display.display();
+  presentDisplay();
 }
 
 void drawSleepScreen() {
@@ -416,7 +566,7 @@ void drawSleepScreen() {
   display.setTextSize(1);
   display.setCursor(46, 56);
   display.print("Zzz...");
-  display.display();
+  presentDisplay();
 }
 
 void startBootAnimation() {
@@ -437,6 +587,7 @@ void startBootAnimation() {
 void enterDeepSleep() {
   saveCurrentPet();
   display.ssd1306_command(SSD1306_DISPLAYOFF);
+  if (ENABLE_SPI_TFT_UI) spiTft.enableDisplay(false);
 
   const uint64_t wakePinMask = 1ULL << BTN_OK;
   const esp_err_t wakeupConfigured = esp_deep_sleep_enable_gpio_wakeup(
@@ -444,6 +595,7 @@ void enterDeepSleep() {
   if (wakeupConfigured != ESP_OK) {
     Serial.println("Deep sleep wake setup failed");
     display.ssd1306_command(SSD1306_DISPLAYON);
+    if (ENABLE_SPI_TFT_UI) spiTft.enableDisplay(true);
     powerState = POWER_ACTIVE;
     lastUserActivityAt = millis();
     return;
@@ -494,7 +646,7 @@ void updateBootAnimation() {
         else {
           bootPhase = BOOT_CLEAR;
           display.clearDisplay();
-          display.display();
+          presentDisplay();
         }
       }
       break;
@@ -535,7 +687,7 @@ void drawMainScreen() {
   } else {
     drawCreature(creatureX, 24, creatureBlink, EXPRESSION_AUTO, true);
   }
-  display.display();
+  presentDisplay();
 }
 
 void drawFoodScreen() {
@@ -557,7 +709,7 @@ void drawFoodScreen() {
         display.print("FD: WARM FIRST");
       }
     }
-    display.display();
+    presentDisplay();
     return;
   }
   drawMainMenu();
@@ -568,7 +720,7 @@ void drawFoodScreen() {
   display.setTextSize(1);
   display.setCursor(4, 40);
   display.print("MIAM!");
-  display.display();
+  presentDisplay();
 }
 
 void drawPlayScreen() {
@@ -578,7 +730,7 @@ void drawPlayScreen() {
   display.setTextSize(1);
   display.setCursor(94, 40);
   display.print("YAY!");
-  display.display();
+  presentDisplay();
 }
 
 void drawMedicineScreen() {
@@ -590,7 +742,7 @@ void drawMedicineScreen() {
                      DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
   display.setTextSize(1);
   drawCenteredText(medicineHelped ? "FEEL BETTER!" : "NO MEDICINE", 16);
-  display.display();
+  presentDisplay();
 }
 
 void drawCleanScreen() {
@@ -601,7 +753,7 @@ void drawCleanScreen() {
                      DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
   display.setTextSize(1);
   drawCenteredText("ALL CLEAN!", 16);
-  display.display();
+  presentDisplay();
 }
 
 void drawRestScreen() {
@@ -619,7 +771,7 @@ void drawRestScreen() {
   if (sleepAccepted) drawCenteredText("Zzz...", 16);
   else if (pet.stubbornness == 2) drawCenteredText("ONE MORE!", 16);
   else drawCenteredText("NOT TIRED!", 16);
-  display.display();
+  presentDisplay();
 }
 
 void drawStatusScreen() {
@@ -633,7 +785,7 @@ void drawStatusScreen() {
   display.setCursor(3, 49); display.print("FAT "); display.print(pet.fatigue);
   display.setCursor(47, 49); display.print(lifeStageLabel());
   display.setCursor(79, 49); display.print("AGE "); display.print(petAgeMinutes()); display.print("M");
-  display.display();
+  presentDisplay();
 }
 
 void goToScreen(ScreenState newScreen) {
@@ -943,6 +1095,7 @@ void setup() {
     Serial.println("OLED error");
     while (true);
   }
+  if (ENABLE_SPI_TFT_UI) beginTftUi();
   pinMode(BTN_LEFT, INPUT_PULLUP);
   pinMode(BTN_OK, INPUT_PULLUP);
   pinMode(BTN_RIGHT, INPUT_PULLUP);

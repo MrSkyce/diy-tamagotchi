@@ -1,6 +1,7 @@
 # Tamagotchi ESP32-C3
 
-Prototype de Tamagotchi DIY basé sur ESP32-C3, OLED 128×64, trois boutons et buzzer passif.
+Prototype de Tamagotchi DIY basé sur ESP32-C3, OLED 128×64, TFT IPS
+ST7789 240×240, trois boutons et buzzer passif.
 Le firmware affiche actuellement la version `v0.6` dans le coin supérieur droit
 des écrans de transition.
 
@@ -29,6 +30,18 @@ bibliothèques Adafruit déclarées dans `platformio.ini`.
 - `TamagotchiESP32C3.ino` : référence Arduino V0.3, conservée pour comparaison.
 - `HANDOFF.md` : contexte et roadmap.
 
+### Écran IPS ST7789
+
+Le firmware conserve l'OLED comme affichage de contrôle et affiche en parallèle
+une interface colorée 240×240 sur le ST7789 avec Adafruit GFX. Le module testé
+n'expose ni `CS` ni `MISO`. Il est validé en SPI matériel mode 3 à 32 MHz,
+avec l'inversion IPS active et l'offset Adafruit de 80 lignes correspondant à
+l'orientation retournée du montage. Les jauges TFT ne sont redessinées que
+lorsque leur valeur change afin d'éviter le clignotement.
+
+Des environnements PlatformIO autonomes conservent les diagnostics GPIO,
+SPI brut, SPI matériel et Adafruit sans les inclure dans le firmware normal.
+
 ## Pinout
 
 - SDA : GPIO0
@@ -36,7 +49,12 @@ bibliothèques Adafruit déclarées dans `platformio.ini`.
 - A / Left : GPIO21
 - B / OK : GPIO3
 - C / Right : GPIO10
-- Buzzer : GPIO4
+- Buzzer : GPIO5
+- TFT SCK : GPIO4
+- TFT MOSI / SDA : GPIO6
+- TFT DC : GPIO7
+- TFT RESET : GPIO20
+- TFT VCC et BLK : 3,3 V
 
 L'écran OLED utilise l'adresse I²C `0x3C`. Les boutons sont câblés entre le
 GPIO et GND et utilisent les résistances de tirage internes (`INPUT_PULLUP`).
@@ -71,9 +89,10 @@ après les actions et actualisée périodiquement pour limiter l'usure de la fla
 ## Veille profonde (test)
 
 Après 60 secondes sans appui, le prototype sauvegarde le dragon, affiche
-`SLEEP`, éteint l'OLED et entre en deep sleep. Le bouton OK (GPIO3) réveille la
-carte. Cette durée courte sert aux tests ; elle sera ajustée pour l'usage sur
-batterie.
+`SLEEP`, éteint l'OLED et le contrôleur TFT, puis entre en deep sleep. Le
+bouton OK (GPIO3) réveille la carte. Le rétroéclairage reste alimenté tant que
+`BLK` est relié directement au 3,3 V. Cette durée courte sert aux tests ; elle
+sera ajustée pour l'usage sur batterie.
 
 ## Cycle de vie
 

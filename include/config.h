@@ -10,7 +10,17 @@ constexpr uint8_t OLED_ADDR = 0x3C;
 constexpr uint8_t BTN_LEFT = 21;
 constexpr uint8_t BTN_OK = 3;
 constexpr uint8_t BTN_RIGHT = 10;
-constexpr uint8_t BUZZER_PIN = 4;
+constexpr uint8_t BUZZER_PIN = 5;
+
+// ST7789 sans CS, valide en SPI mode 3 sur le prototype.
+constexpr uint8_t TFT_DC_PIN = 7;
+constexpr uint8_t TFT_MOSI_PIN = 6;
+constexpr uint8_t TFT_SCLK_PIN = 4;
+constexpr uint8_t TFT_RST_PIN = 20;
+constexpr uint16_t TFT_WIDTH = 240;
+constexpr uint16_t TFT_HEIGHT = 240;
+constexpr uint32_t TFT_SPI_FREQUENCY = 32000000;
+constexpr bool ENABLE_SPI_TFT_UI = true;
 
 // Affiche discretement dans le coin droit des ecrans de transition.
 constexpr char FIRMWARE_VERSION[] = "v0.6";
