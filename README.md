@@ -39,8 +39,25 @@ avec l'inversion IPS active et l'offset Adafruit de 80 lignes correspondant à
 l'orientation retournée du montage. Les jauges TFT ne sont redessinées que
 lorsque leur valeur change afin d'éviter le clignotement.
 
+Le rendu TFT est encore hybride : bandeau et jauges sont dessinés nativement,
+mais la scène centrale reste une version agrandie et colorisée du framebuffer
+OLED 128×64. La prochaine migration graphique consiste à reconstruire chaque
+écran directement en 240×240 sans supprimer l'OLED avant validation complète.
+
 Des environnements PlatformIO autonomes conservent les diagnostics GPIO,
 SPI brut, SPI matériel et Adafruit sans les inclure dans le firmware normal.
+
+```bash
+pio run -e gpio-test
+pio run -e raw-st7789-test
+pio run -e hardware-st7789-test
+pio run -e st7789-test
+```
+
+Le diagnostic matériel a établi que le mode 0 laisse cette dalle noire, que
+`INVON` est nécessaire pour obtenir les couleurs attendues et que l'offset
+dépend de l'orientation : zéro avec le pilote brut en `MADCTL=0`, mais 80 avec
+Adafruit en rotation 0. Ne pas transposer un offset d'un pilote à l'autre.
 
 ## Pinout
 
@@ -60,6 +77,12 @@ L'écran OLED utilise l'adresse I²C `0x3C`. Les boutons sont câblés entre le
 GPIO et GND et utilisent les résistances de tirage internes (`INPUT_PULLUP`).
 Chaque appui est validé après 35 ms stables afin d'éliminer les rebonds
 mécaniques, sans bloquer la boucle principale.
+
+Le TFT sans `CS` ne peut pas partager simplement son bus avec la mémoire
+W25Q64 : celle-ci reste volontairement non câblée. Sans `MISO`, le firmware ne
+peut pas lire les registres du contrôleur. Enfin, `BLK` étant relié directement
+au 3,3 V, le rétroéclairage reste alimenté même lorsque le contrôleur TFT est
+désactivé avant le deep sleep.
 
 Le menu jaune compact expose `FD`, `PL`, `MD`, `CL`, `SL` et `ST`. Le nom
 complet de l'action sélectionnée s'affiche une seconde dans la première ligne
