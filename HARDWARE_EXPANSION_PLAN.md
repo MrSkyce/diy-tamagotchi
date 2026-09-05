@@ -23,7 +23,7 @@ laisser cette liaison ouverte.
 | 5 | buzzer passif | inchangé |
 | 6 | SPI MOSI partagé TFT/W25Q64 | données vers les deux périphériques |
 | 7 | TFT DC | inchangé |
-| 8 | commande BLK via MOSFET P | pull-up 100 kΩ, rétroéclairage éteint |
+| 8 | commande BLK via transistor PNP BC327 | pull-up 100 kΩ, rétroéclairage éteint |
 | 9 | TFT CS | pull-up externe 10 kΩ, inactif à HIGH |
 | 10 | bouton droite | `INPUT_PULLUP` |
 | 20 | SPI MISO du W25Q64 | entrée, liaison différée |
@@ -31,7 +31,7 @@ laisser cette liaison ouverte.
 | 18, 19 | USB natif | ne pas utiliser |
 
 GPIO2, GPIO8 et GPIO9 sont des broches de strapping. Le montage impose un état
-HIGH au démarrage sur les deux CS et sur la grille de commande BLK. Les
+HIGH au démarrage sur les deux CS et sur la base de commande BLK. Les
 résistances indiquées doivent être installées avant la première mise sous
 tension.
 
@@ -67,19 +67,23 @@ d'en ajouter en parallèle.
 
 ## Commande de BLK
 
-Ne pas alimenter BLK directement depuis GPIO8. Utiliser un MOSFET P en
-commutation haute :
+Ne pas alimenter BLK directement depuis GPIO8. Utiliser un transistor PNP
+BC327 en commutation haute :
 
 ```text
-3,3 V ─── source MOSFET P
-              drain ─── BLK TFT
-GPIO8 ── 1 kΩ ─ grille
+3,3 V ─── émetteur BC327
+              collecteur ─── BLK TFT
+GPIO8 ── 1 kΩ ─ base
 3,3 V ─ 100 kΩ ─┘
 ```
 
 - GPIO8 HIGH ou haute impédance : rétroéclairage éteint ;
 - GPIO8 LOW : rétroéclairage allumé ;
-- le pull-up maintient BLK éteint pendant le reset et le deep sleep.
+- le pull-up entre base et émetteur maintient BLK éteint pendant le reset et le
+  deep sleep ;
+- vérifier le brochage du BC327 utilisé avant soudure. Le brochage courant en
+  boîtier TO-92 est C-B-E, face plate vers soi et pattes vers le bas, mais il
+  peut varier selon le fabricant.
 
 ## RTC Adafruit PCF8523
 
@@ -99,7 +103,7 @@ explicite, afin de ne pas la réinitialiser à chaque démarrage.
 ## Ordre de câblage sûr
 
 1. Débrancher USB, alimentation et batterie principale.
-2. Installer les pull-ups des CS et le circuit MOSFET de BLK.
+2. Installer les pull-ups des CS et le circuit BC327 de BLK.
 3. Déplacer CS, RESET et BLK du TFT.
 4. Câbler le PCF8523 et sa pile CR1220.
 5. Câbler VCC, GND, CLK, DI, CS, WP et HOLD du W25Q64.

@@ -167,7 +167,7 @@ Le câblage cible est spécifié dans `HARDWARE_EXPANSION_PLAN.md`. Il ajoute :
 - W25Q64 2,7–3,6 V sur le bus SPI partagé, CS GPIO2 et MISO GPIO20 ;
 - TFT CS déplacé de GND vers GPIO9 ;
 - TFT RESET déplacé de GPIO20 vers EN/RST ;
-- commande BLK par GPIO8 via MOSFET P, active à LOW ;
+- commande BLK par GPIO8 via transistor PNP BC327, active à LOW ;
 - RTC Adafruit PCF8523 sur SDA GPIO0 et SCL GPIO1, adresse `0x68` ;
 - `SQW` non connecté pour la première intégration.
 
