@@ -1,24 +1,21 @@
 #include <Arduino.h>
-#include <Wire.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 #include <Adafruit_ST7789.h>
 #include <SPI.h>
 #include <esp_sleep.h>
 #include <esp_system.h>
 
 #include "config.h"
+#include "generated_tft_assets.h"
 #include "persistence.h"
-#include "sprites.h"
 
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+// Le CS du ZJY154S0800TG01 est maintenu actif par son câblage à GND.
 Adafruit_ST7789 spiTft(&SPI, -1, TFT_DC_PIN, TFT_RST_PIN);
 
 void drawTftUi();
 
 void presentDisplay() {
-  display.display();
-  if (ENABLE_SPI_TFT_UI) drawTftUi();
+  drawTftUi();
 }
 
 enum LifeStage : uint8_t { STAGE_EGG, STAGE_BABY, STAGE_YOUNG, STAGE_ADULT };
@@ -67,11 +64,7 @@ enum MenuItem {
 MenuItem selectedMenu = MENU_FOOD;
 constexpr int MENU_COUNT = 6;
 
-enum CreatureExpression {
-  EXPRESSION_AUTO,
-  EXPRESSION_HAPPY,
-  EXPRESSION_SLEEPING,
-};
+const char* menuTitle(MenuItem menu);
 
 struct Button {
   uint8_t pin;
@@ -122,8 +115,7 @@ unsigned long bootPhaseStartedAt = 0;
 int bootFrame = 0;
 int bootEggX = 4;
 bool wokeFromDeepSleep = false;
-constexpr int BOOT_EGG_Y = 28;
-constexpr int BOOT_EGG_END_X = SCREEN_WIDTH - EGG_SPRITE_WIDTH;
+constexpr int BOOT_EGG_END_X = 104;
 constexpr unsigned long BOOT_EGG_ROLL_INTERVAL = 60;
 
 enum PowerState { POWER_ACTIVE, POWER_PREPARING_SLEEP };
@@ -137,13 +129,11 @@ unsigned long lastHealthTick = 0;
 unsigned long lastCleanlinessTick = 0;
 unsigned long lastFatigueTick = 0;
 unsigned long screenTimer = 0;
-unsigned long menuTitleShownAt = 0;
 constexpr unsigned long HUNGER_INTERVAL = 10000;
 constexpr unsigned long HAPPY_INTERVAL = 15000;
 constexpr unsigned long HEALTH_INTERVAL = 12000;
 constexpr unsigned long CLEANLINESS_INTERVAL = 20000;
 constexpr unsigned long FATIGUE_INTERVAL = 15000;
-constexpr unsigned long MENU_TITLE_DURATION = 1000;
 
 unsigned long lastAnimTick = 0;
 unsigned long lastMoveTick = 0;
@@ -153,13 +143,12 @@ constexpr unsigned long CREATURE_MOVE_INTERVAL = 120;
 constexpr unsigned long BLINK_INTERVAL = 3500;
 constexpr unsigned long BLINK_DURATION = 140;
 constexpr int CREATURE_MIN_X = 4;
-constexpr int CREATURE_MAX_X = SCREEN_WIDTH - DRAGON_SPRITE_WIDTH - 4;
-int creatureX = (SCREEN_WIDTH - DRAGON_SPRITE_WIDTH) / 2;
+constexpr int CREATURE_MAX_X = 84;
+int creatureX = 44;
 bool creatureMoveRight = true;
 bool creatureBlink = false;
 unsigned long blinkStart = 0;
 bool idleFrame = false;
-bool actionFrame = false;
 bool medicineHelped = false;
 bool sleepAccepted = false;
 bool hatchedThisAction = false;
@@ -217,6 +206,12 @@ const char* tftScreenLabel() {
 }
 
 constexpr uint16_t TFT_UI_BACKGROUND = 0x0841;
+constexpr uint16_t TFT_HOME_SKY = 0x5D7F;
+constexpr uint16_t TFT_HOME_SKY_LIGHT = 0x9E9F;
+constexpr uint16_t TFT_HOME_GRASS = 0x6D64;
+constexpr uint16_t TFT_HOME_GRASS_DARK = 0x34A3;
+constexpr uint16_t TFT_HOME_CREAM = 0xFF39;
+constexpr uint16_t TFT_HOME_NAVY = 0x0863;
 
 uint16_t tftAccentColor() {
   if (bootPhase != BOOT_DONE) return ST77XX_MAGENTA;
@@ -245,22 +240,529 @@ void drawTftCenteredText(const char* text, int16_t y, uint8_t size,
   spiTft.print(text);
 }
 
-void drawTftStat(const char* label, int value, int16_t x, int16_t y,
-                 uint16_t color) {
-  constexpr int16_t BAR_WIDTH = 100;
-  spiTft.fillRect(x, y, BAR_WIDTH, 8, TFT_UI_BACKGROUND);
-  spiTft.setTextSize(1);
-  spiTft.setTextColor(ST77XX_WHITE, TFT_UI_BACKGROUND);
-  spiTft.setCursor(x, y);
+void drawTftIcon(MenuItem item, int16_t centerX, int16_t centerY,
+                 uint16_t color, uint16_t background) {
+  switch (item) {
+    case MENU_FOOD:
+      spiTft.fillCircle(centerX - 3, centerY - 2, 4, color);
+      spiTft.fillCircle(centerX + 2, centerY + 2, 4, color);
+      spiTft.drawLine(centerX + 4, centerY + 4, centerX + 8, centerY + 8, color);
+      spiTft.fillCircle(centerX + 9, centerY + 9, 2, color);
+      break;
+    case MENU_PLAY:
+      spiTft.fillTriangle(centerX, centerY - 8, centerX + 3, centerY - 2,
+                          centerX + 9, centerY - 1, color);
+      spiTft.fillTriangle(centerX + 7, centerY + 2, centerX + 4, centerY + 8,
+                          centerX, centerY + 4, color);
+      spiTft.fillTriangle(centerX, centerY + 4, centerX - 4, centerY + 8,
+                          centerX - 7, centerY + 2, color);
+      spiTft.fillTriangle(centerX - 9, centerY - 1, centerX - 3, centerY - 2,
+                          centerX, centerY - 8, color);
+      spiTft.fillCircle(centerX, centerY, 4, color);
+      break;
+    case MENU_MEDICINE:
+      spiTft.fillRoundRect(centerX - 4, centerY - 10, 8, 20, 2, color);
+      spiTft.fillRoundRect(centerX - 10, centerY - 4, 20, 8, 2, color);
+      break;
+    case MENU_CLEAN:
+      spiTft.fillTriangle(centerX, centerY - 10, centerX - 8, centerY + 3,
+                          centerX + 8, centerY + 3, color);
+      spiTft.fillCircle(centerX, centerY + 3, 8, color);
+      break;
+    case MENU_SLEEP:
+      spiTft.fillCircle(centerX, centerY, 10, color);
+      spiTft.fillCircle(centerX + 5, centerY - 4, 9, background);
+      break;
+    case MENU_STATUS:
+      spiTft.drawRect(centerX - 9, centerY - 9, 18, 18, color);
+      spiTft.fillRect(centerX - 5, centerY + 2, 3, 5, color);
+      spiTft.fillRect(centerX - 1, centerY - 2, 3, 9, color);
+      spiTft.fillRect(centerX + 3, centerY - 6, 3, 13, color);
+      break;
+  }
+}
+
+void drawTftHomeStat(MenuItem icon, int value, int16_t slot,
+                     uint16_t color) {
+  const int16_t x = slot * 40;
+  drawTftIcon(icon, x + 20, 11, color, TFT_HOME_CREAM);
+  spiTft.fillRect(x + 2, 23, 36, 8, TFT_HOME_CREAM);
+  const int filledSegments = (constrain(value, 0, 100) + 19) / 20;
+  for (int segment = 0; segment < 5; ++segment) {
+    const int16_t segmentX = x + 3 + segment * 7;
+    if (segment < filledSegments) {
+      spiTft.fillRect(segmentX, 24, 6, 6, color);
+    } else {
+      spiTft.drawRect(segmentX, 24, 6, 6, TFT_HOME_NAVY);
+    }
+  }
+}
+
+int tftLifeStageProgress() {
+  return pet.lifeStage == STAGE_BABY ? 33 :
+         pet.lifeStage == STAGE_YOUNG ? 66 : 100;
+}
+
+struct TftDragonFrame {
+  const uint16_t* pixels;
+  const uint8_t* mask;
+};
+
+TftDragonFrame currentTftHomeDragonFrame() {
+  if (pet.health < 30) return {dragon_sick_pixels, dragon_sick_mask};
+  if (pet.hunger < 25) return {dragon_hungry_pixels, dragon_hungry_mask};
+  if (pet.happiness < 25) return {dragon_sad_pixels, dragon_sad_mask};
+  if (pet.fatigue >= 50) {
+    return idleFrame ? TftDragonFrame{dragon_tired_02_pixels,
+                                      dragon_tired_02_mask}
+                     : TftDragonFrame{dragon_tired_01_pixels,
+                                      dragon_tired_01_mask};
+  }
+  if (creatureBlink) return {dragon_blink_pixels, dragon_blink_mask};
+  if (pet.happiness >= 95) return {dragon_happy_pixels, dragon_happy_mask};
+  if (creatureX <= CREATURE_MIN_X + 2 ||
+      creatureX >= CREATURE_MAX_X - 2) {
+    return idleFrame ? TftDragonFrame{dragon_idle2_pixels, dragon_idle2_mask}
+                     : TftDragonFrame{dragon_idle1_pixels, dragon_idle1_mask};
+  }
+  if (creatureMoveRight) {
+    return idleFrame
+               ? TftDragonFrame{dragon_walk_right_02_pixels,
+                                dragon_walk_right_02_mask}
+               : TftDragonFrame{dragon_walk_right_01_pixels,
+                                dragon_walk_right_01_mask};
+  }
+  return idleFrame
+             ? TftDragonFrame{dragon_walk_left_02_pixels,
+                              dragon_walk_left_02_mask}
+             : TftDragonFrame{dragon_walk_left_01_pixels,
+                              dragon_walk_left_01_mask};
+}
+
+int16_t tftCreatureX() {
+  return map(creatureX, CREATURE_MIN_X, CREATURE_MAX_X, 4,
+             TFT_WIDTH - dragon_idle1_width - 4);
+}
+
+bool tftPointInCircle(int16_t x, int16_t y, int16_t centerX,
+                      int16_t centerY, int16_t radius) {
+  const int32_t dx = x - centerX;
+  const int32_t dy = y - centerY;
+  return dx * dx + dy * dy <= radius * radius;
+}
+
+uint16_t tftHomeBackgroundAt(int16_t x, int16_t y) {
+  uint16_t color = y < 102 ? TFT_HOME_SKY_LIGHT :
+                   y < 150 ? TFT_HOME_SKY : TFT_HOME_GRASS;
+  const bool leftCloud =
+      tftPointInCircle(x, y, 28, 63, 12) ||
+      tftPointInCircle(x, y, 42, 62, 16) ||
+      tftPointInCircle(x, y, 57, 66, 10) ||
+      (x >= 28 && x < 57 && y >= 66 && y < 73);
+  const bool rightCloud =
+      tftPointInCircle(x, y, 203, 82, 10) ||
+      tftPointInCircle(x, y, 215, 80, 13) ||
+      (x >= 203 && x < 228 && y >= 83 && y < 89);
+  if (leftCloud || rightCloud) color = ST77XX_WHITE;
+
+  const bool bush = tftPointInCircle(x, y, 22, 176, 16) ||
+                    tftPointInCircle(x, y, 45, 181, 20) ||
+                    tftPointInCircle(x, y, 214, 177, 22);
+  if (bush) color = TFT_HOME_GRASS_DARK;
+  return color;
+}
+
+void drawTftHomeDragon(const TftDragonFrame& frame, int16_t dragonX,
+                       int16_t previousX = -1) {
+  constexpr int16_t DRAGON_Y = 63;
+  constexpr int16_t MASK_ROW_BYTES = (dragon_idle1_width + 7) / 8;
+  const int16_t left = previousX < 0 ? dragonX : min(dragonX, previousX);
+  const int16_t right = previousX < 0
+      ? dragonX + dragon_idle1_width
+      : max(dragonX, previousX) + dragon_idle1_width;
+  const int16_t regionWidth = right - left;
+  uint16_t line[TFT_WIDTH];
+
+  spiTft.startWrite();
+  spiTft.setAddrWindow(left, DRAGON_Y, regionWidth, dragon_idle1_height);
+  for (int16_t y = 0; y < dragon_idle1_height; ++y) {
+    const int16_t screenY = DRAGON_Y + y;
+    for (int16_t screenX = left; screenX < right; ++screenX) {
+      const int16_t spriteX = screenX - dragonX;
+      bool opaque = false;
+      if (spriteX >= 0 && spriteX < dragon_idle1_width) {
+        const uint8_t maskByte = pgm_read_byte(
+            &frame.mask[y * MASK_ROW_BYTES + spriteX / 8]);
+        opaque = maskByte & (0x80 >> (spriteX % 8));
+      }
+      line[screenX - left] = opaque
+          ? pgm_read_word(&frame.pixels[y * dragon_idle1_width + spriteX])
+          : tftHomeBackgroundAt(screenX, screenY);
+    }
+    spiTft.writePixels(line, regionWidth);
+  }
+  spiTft.endWrite();
+}
+
+void drawTftDragonOnSolid(const TftDragonFrame& frame, int16_t dragonY,
+                          uint16_t background) {
+  constexpr int16_t DRAGON_X = (TFT_WIDTH - dragon_idle1_width) / 2;
+  constexpr int16_t MASK_ROW_BYTES = (dragon_idle1_width + 7) / 8;
+  uint16_t line[dragon_idle1_width];
+
+  spiTft.startWrite();
+  spiTft.setAddrWindow(DRAGON_X, dragonY, dragon_idle1_width,
+                       dragon_idle1_height);
+  for (int16_t y = 0; y < dragon_idle1_height; ++y) {
+    for (int16_t x = 0; x < dragon_idle1_width; ++x) {
+      const uint8_t maskByte = pgm_read_byte(
+          &frame.mask[y * MASK_ROW_BYTES + x / 8]);
+      line[x] = maskByte & (0x80 >> (x % 8))
+                    ? pgm_read_word(&frame.pixels[y * dragon_idle1_width + x])
+                    : background;
+    }
+    spiTft.writePixels(line, dragon_idle1_width);
+  }
+  spiTft.endWrite();
+}
+
+void drawTftSpriteOnSolid(const TftDragonFrame& frame, int16_t spriteX,
+                          int16_t spriteY, uint16_t background) {
+  constexpr int16_t SPRITE_WIDTH = 112;
+  constexpr int16_t SPRITE_HEIGHT = 112;
+  constexpr int16_t MASK_ROW_BYTES = (SPRITE_WIDTH + 7) / 8;
+  uint16_t line[SPRITE_WIDTH];
+
+  spiTft.startWrite();
+  spiTft.setAddrWindow(spriteX, spriteY, SPRITE_WIDTH, SPRITE_HEIGHT);
+  for (int16_t y = 0; y < SPRITE_HEIGHT; ++y) {
+    for (int16_t x = 0; x < SPRITE_WIDTH; ++x) {
+      const uint8_t maskByte = pgm_read_byte(
+          &frame.mask[y * MASK_ROW_BYTES + x / 8]);
+      line[x] = maskByte & (0x80 >> (x % 8))
+                    ? pgm_read_word(&frame.pixels[y * SPRITE_WIDTH + x])
+                    : background;
+    }
+    spiTft.writePixels(line, SPRITE_WIDTH);
+  }
+  spiTft.endWrite();
+}
+
+void drawTftMovingSpriteOnSolid(const TftDragonFrame& frame,
+                                int16_t spriteX, int16_t previousX,
+                                int16_t spriteY, uint16_t background) {
+  constexpr int16_t SPRITE_WIDTH = 112;
+  constexpr int16_t SPRITE_HEIGHT = 112;
+  constexpr int16_t MASK_ROW_BYTES = (SPRITE_WIDTH + 7) / 8;
+  const int16_t left = previousX < 0 ? spriteX : min(spriteX, previousX);
+  const int16_t right = previousX < 0
+      ? spriteX + SPRITE_WIDTH
+      : max(spriteX, previousX) + SPRITE_WIDTH;
+  const int16_t regionWidth = right - left;
+  uint16_t line[TFT_WIDTH];
+
+  spiTft.startWrite();
+  spiTft.setAddrWindow(left, spriteY, regionWidth, SPRITE_HEIGHT);
+  for (int16_t y = 0; y < SPRITE_HEIGHT; ++y) {
+    for (int16_t screenX = left; screenX < right; ++screenX) {
+      const int16_t frameX = screenX - spriteX;
+      bool opaque = false;
+      if (frameX >= 0 && frameX < SPRITE_WIDTH) {
+        const uint8_t maskByte = pgm_read_byte(
+            &frame.mask[y * MASK_ROW_BYTES + frameX / 8]);
+        opaque = maskByte & (0x80 >> (frameX % 8));
+      }
+      line[screenX - left] = opaque
+          ? pgm_read_word(&frame.pixels[y * SPRITE_WIDTH + frameX])
+          : background;
+    }
+    spiTft.writePixels(line, regionWidth);
+  }
+  spiTft.endWrite();
+}
+
+void drawTftHomeMenuItem(MenuItem item, bool selected) {
+  const int16_t x = static_cast<int>(item) * 40;
+  const uint16_t background = selected ? TFT_HOME_CREAM : TFT_HOME_NAVY;
+  const uint16_t foreground = selected ? 0xFD20 : TFT_HOME_CREAM;
+  spiTft.fillRect(x, 196, 40, 44, background);
+  if (selected) spiTft.drawRect(x + 1, 197, 38, 42, 0xFD20);
+  drawTftIcon(item, x + 20, 218, foreground, background);
+}
+
+void drawTftHomeNative() {
+  spiTft.fillRect(0, 0, TFT_WIDTH, 32, TFT_HOME_CREAM);
+  drawTftHomeStat(MENU_FOOD, pet.hunger, 0, 0xFD20);
+  drawTftHomeStat(MENU_PLAY, pet.happiness, 1, 0xF81F);
+  drawTftHomeStat(MENU_MEDICINE, pet.health, 2, 0xF940);
+  drawTftHomeStat(MENU_CLEAN, pet.cleanliness, 3, 0x05FF);
+  drawTftHomeStat(MENU_SLEEP, 100 - pet.fatigue, 4, 0xA81F);
+  drawTftHomeStat(MENU_STATUS, tftLifeStageProgress(), 5, 0x07F0);
+
+  spiTft.fillRect(0, 32, TFT_WIDTH, 70, TFT_HOME_SKY_LIGHT);
+  spiTft.fillRect(0, 102, TFT_WIDTH, 48, TFT_HOME_SKY);
+  spiTft.fillRect(0, 150, TFT_WIDTH, 46, TFT_HOME_GRASS);
+  spiTft.fillRect(0, 188, TFT_WIDTH, 8, TFT_HOME_GRASS_DARK);
+  spiTft.fillCircle(28, 63, 12, ST77XX_WHITE);
+  spiTft.fillCircle(42, 62, 16, ST77XX_WHITE);
+  spiTft.fillCircle(57, 66, 10, ST77XX_WHITE);
+  spiTft.fillRect(28, 66, 29, 7, ST77XX_WHITE);
+  spiTft.fillCircle(203, 82, 10, ST77XX_WHITE);
+  spiTft.fillCircle(215, 80, 13, ST77XX_WHITE);
+  spiTft.fillRect(203, 83, 25, 6, ST77XX_WHITE);
+  spiTft.fillCircle(22, 176, 16, TFT_HOME_GRASS_DARK);
+  spiTft.fillCircle(45, 181, 20, TFT_HOME_GRASS_DARK);
+  spiTft.fillCircle(214, 177, 22, TFT_HOME_GRASS_DARK);
+
+  drawTftHomeDragon(currentTftHomeDragonFrame(), tftCreatureX());
+
+  for (int item = 0; item < MENU_COUNT; ++item) {
+    drawTftHomeMenuItem(static_cast<MenuItem>(item),
+                        item == static_cast<int>(selectedMenu));
+  }
+}
+
+TftDragonFrame currentTftActionFrame() {
+  const bool secondFrame = ((millis() - screenTimer) / 300) % 2 != 0;
+  switch (currentScreen) {
+    case SCREEN_FOOD:
+      return secondFrame
+                 ? TftDragonFrame{dragon_food_02_pixels, dragon_food_02_mask}
+                 : TftDragonFrame{dragon_food_01_pixels, dragon_food_01_mask};
+    case SCREEN_PLAY:
+      return secondFrame
+                 ? TftDragonFrame{dragon_play_02_pixels, dragon_play_02_mask}
+                 : TftDragonFrame{dragon_play_01_pixels, dragon_play_01_mask};
+    case SCREEN_MEDICINE:
+      return secondFrame
+                 ? TftDragonFrame{dragon_medicine_02_pixels,
+                                  dragon_medicine_02_mask}
+                 : TftDragonFrame{dragon_medicine_01_pixels,
+                                  dragon_medicine_01_mask};
+    case SCREEN_CLEAN:
+      return secondFrame
+                 ? TftDragonFrame{dragon_clean_02_pixels, dragon_clean_02_mask}
+                 : TftDragonFrame{dragon_clean_01_pixels, dragon_clean_01_mask};
+    case SCREEN_REST:
+      if (sleepAccepted) {
+        return secondFrame
+                   ? TftDragonFrame{dragon_sleep_02_pixels,
+                                    dragon_sleep_02_mask}
+                   : TftDragonFrame{dragon_sleep_01_pixels,
+                                    dragon_sleep_01_mask};
+      }
+      return secondFrame
+                 ? TftDragonFrame{dragon_sleep_refuse_02_pixels,
+                                  dragon_sleep_refuse_02_mask}
+                 : TftDragonFrame{dragon_sleep_refuse_01_pixels,
+                                  dragon_sleep_refuse_01_mask};
+    default:
+      return {dragon_idle1_pixels, dragon_idle1_mask};
+  }
+}
+
+uint16_t tftActionBackground() {
+  switch (currentScreen) {
+    case SCREEN_FOOD: return 0xFE8C;
+    case SCREEN_PLAY: return 0xF59F;
+    case SCREEN_MEDICINE: return 0x7E9F;
+    case SCREEN_CLEAN: return 0xBFFF;
+    case SCREEN_REST: return 0xDE7F;
+    default: return TFT_UI_BACKGROUND;
+  }
+}
+
+const char* tftActionMessage() {
+  switch (currentScreen) {
+    case SCREEN_FOOD: return "MIAM!";
+    case SCREEN_PLAY: return "YAY!";
+    case SCREEN_MEDICINE:
+      return medicineHelped ? "FEEL BETTER!" : "NO MEDICINE";
+    case SCREEN_CLEAN: return "ALL CLEAN!";
+    case SCREEN_REST:
+      if (sleepAccepted) return "Zzz...";
+      return pet.stubbornness == 2 ? "ONE MORE!" : "NOT TIRED!";
+    default: return "";
+  }
+}
+
+void drawTftActionNative(const TftDragonFrame& frame) {
+  const uint16_t background = tftActionBackground();
+  spiTft.fillScreen(background);
+  spiTft.fillRect(0, 0, TFT_WIDTH, 32, tftAccentColor());
+  drawTftCenteredText(tftScreenLabel(), 9, 2, ST77XX_WHITE);
+  drawTftDragonOnSolid(frame, 43, background);
+
+  drawTftCenteredText(tftActionMessage(), 166, 2, TFT_HOME_NAVY);
+  for (int item = 0; item < MENU_COUNT; ++item) {
+    drawTftHomeMenuItem(static_cast<MenuItem>(item),
+                        item == static_cast<int>(selectedMenu));
+  }
+}
+
+void drawTftStatusRow(const char* label, int value, int16_t y,
+                      uint16_t color) {
+  spiTft.setTextSize(2);
+  spiTft.setTextColor(TFT_HOME_NAVY, TFT_HOME_CREAM);
+  spiTft.setCursor(12, y + 5);
   spiTft.print(label);
-  spiTft.setCursor(x + 78, y);
+  spiTft.setCursor(92, y + 5);
+  if (value < 100) spiTft.print(' ');
+  if (value < 10) spiTft.print(' ');
   spiTft.print(value);
-  spiTft.drawRect(x, y + 10, BAR_WIDTH, 7, 0x7BEF);
-  spiTft.fillRect(x + 1, y + 11, BAR_WIDTH - 2, 5, ST77XX_BLACK);
-  spiTft.fillRect(x + 1, y + 11,
-                  static_cast<int32_t>(constrain(value, 0, 100)) *
-                      (BAR_WIDTH - 2) / 100,
-                  5, color);
+
+  const int filledSegments = (constrain(value, 0, 100) + 19) / 20;
+  for (int segment = 0; segment < 5; ++segment) {
+    const int16_t x = 134 + segment * 19;
+    if (segment < filledSegments) {
+      spiTft.fillRoundRect(x, y + 4, 15, 16, 2, color);
+    } else {
+      spiTft.drawRoundRect(x, y + 4, 15, 16, 2, TFT_HOME_NAVY);
+    }
+  }
+}
+
+void drawTftStatusNative() {
+  spiTft.fillScreen(TFT_HOME_CREAM);
+  spiTft.fillRect(0, 0, TFT_WIDTH, 32, tftAccentColor());
+  drawTftCenteredText("STATUS", 9, 2, ST77XX_WHITE);
+
+  drawTftStatusRow("FOOD", pet.hunger, 38, 0xFD20);
+  drawTftStatusRow("HAPPY", pet.happiness, 66, 0xF81F);
+  drawTftStatusRow("HP", pet.health, 94, 0xF940);
+  drawTftStatusRow("CLEAN", pet.cleanliness, 122, 0x05FF);
+  drawTftStatusRow("REST", 100 - pet.fatigue, 150, 0xA81F);
+  drawTftStatusRow("GROW", tftLifeStageProgress(), 178, 0x07F0);
+
+  spiTft.fillRect(0, 210, TFT_WIDTH, 30, TFT_HOME_NAVY);
+  spiTft.setTextSize(1);
+  spiTft.setTextColor(TFT_HOME_CREAM, TFT_HOME_NAVY);
+  spiTft.setCursor(12, 221);
+  spiTft.print(lifeStageLabel());
+  spiTft.setCursor(150, 221);
+  spiTft.print("AGE ");
+  spiTft.print(petAgeMinutes());
+  spiTft.print(" MIN");
+}
+
+TftDragonFrame tftRollingEggFrame(int frame);
+
+void drawTftSleepNoticeNative() {
+  constexpr uint16_t NIGHT_BACKGROUND = 0x1085;
+  spiTft.fillScreen(NIGHT_BACKGROUND);
+  spiTft.fillCircle(196, 42, 22, 0xFFE0);
+  spiTft.fillCircle(205, 35, 22, NIGHT_BACKGROUND);
+  drawTftCenteredText("GOOD NIGHT", 14, 2, ST77XX_WHITE);
+  if (pet.lifeStage == STAGE_EGG) {
+    drawTftSpriteOnSolid(tftRollingEggFrame(0), 64, 58, NIGHT_BACKGROUND);
+  } else {
+    drawTftDragonOnSolid(
+        {dragon_sleeping_pixels, dragon_sleeping_mask}, 58, NIGHT_BACKGROUND);
+  }
+  drawTftCenteredText("Zzz...", 184, 2, 0xDE7F);
+}
+
+TftDragonFrame tftRollingEggFrame(int frame) {
+  switch (frame % 4) {
+    case 0: return {egg_roll_01_pixels, egg_roll_01_mask};
+    case 1: return {egg_roll_02_pixels, egg_roll_02_mask};
+    case 2: return {egg_roll_03_pixels, egg_roll_03_mask};
+    default: return {egg_roll_04_pixels, egg_roll_04_mask};
+  }
+}
+
+TftDragonFrame tftCrackingEggFrame(int frame) {
+  switch (constrain(frame, 0, 2)) {
+    case 0: return {egg_crack_01_pixels, egg_crack_01_mask};
+    case 1: return {egg_crack_02_pixels, egg_crack_02_mask};
+    default: return {egg_cracked_pixels, egg_cracked_mask};
+  }
+}
+
+void drawTftBootNative() {
+  constexpr uint16_t BOOT_BACKGROUND = 0x1085;
+  static int lastPhase = -1;
+  static int16_t lastRollX = -1;
+  const bool phaseChanged = lastPhase != static_cast<int>(bootPhase);
+  if (phaseChanged) {
+    spiTft.fillScreen(BOOT_BACKGROUND);
+    spiTft.fillRect(0, 0, TFT_WIDTH, 34, 0x4810);
+    drawTftCenteredText("DRAGON TAMAGOTCHI", 10, 2, ST77XX_WHITE);
+    lastPhase = static_cast<int>(bootPhase);
+    lastRollX = -1;
+  }
+
+  if (bootPhase == BOOT_EGG_ROLL) {
+    const int16_t x = map(bootEggX, 4, BOOT_EGG_END_X, 4, 124);
+    drawTftMovingSpriteOnSolid(tftRollingEggFrame(bootFrame), x, lastRollX,
+                               58, BOOT_BACKGROUND);
+    lastRollX = x;
+    if (phaseChanged)
+      drawTftCenteredText("A NEW FRIEND IS COMING...", 202, 1, 0xFFE0);
+  } else if (bootPhase == BOOT_CRACKED_EGG) {
+    drawTftSpriteOnSolid(tftCrackingEggFrame(bootFrame), 64, 58,
+                         BOOT_BACKGROUND);
+    if (phaseChanged) drawTftCenteredText("CRACK!", 199, 2, 0xFFE0);
+  } else if (bootPhase == BOOT_HELLO) {
+    if (pet.lifeStage == STAGE_EGG) {
+      drawTftSpriteOnSolid(tftRollingEggFrame(0), 64, 56, BOOT_BACKGROUND);
+      drawTftCenteredText("OK: WARM ME", 190, 2, ST77XX_WHITE);
+    } else {
+      drawTftSpriteOnSolid(
+          {dragon_idle1_pixels, dragon_idle1_mask}, 64, 52, BOOT_BACKGROUND);
+      drawTftCenteredText(petRestored ? "WELCOME BACK!" : "HELLO!", 188, 2,
+                          ST77XX_WHITE);
+    }
+  }
+}
+
+void drawTftEggHomeDetails() {
+  constexpr uint16_t NEST_BACKGROUND = 0xFE8C;
+  spiTft.fillRect(0, 160, TFT_WIDTH, 56, NEST_BACKGROUND);
+  drawTftCenteredText(menuTitle(selectedMenu), 166, 1, TFT_HOME_NAVY);
+  drawTftCenteredText("WARMTH", 182, 1, TFT_HOME_NAVY);
+  for (int segment = 0; segment < EGG_WARMTH_REQUIRED; ++segment) {
+    const int16_t x = 83 + segment * 27;
+    if (segment < pet.warmth) spiTft.fillRoundRect(x, 196, 20, 13, 3, 0xFD20);
+    else spiTft.drawRoundRect(x, 196, 20, 13, 3, TFT_HOME_NAVY);
+  }
+}
+
+void drawTftEggHomeNative(const TftDragonFrame& frame) {
+  constexpr uint16_t NEST_BACKGROUND = 0xFE8C;
+  spiTft.fillScreen(NEST_BACKGROUND);
+  spiTft.fillRect(0, 0, TFT_WIDTH, 34, 0xFD20);
+  drawTftCenteredText("DRAGON EGG", 10, 2, ST77XX_WHITE);
+  drawTftSpriteOnSolid(frame, 64, 48, NEST_BACKGROUND);
+  drawTftEggHomeDetails();
+  spiTft.fillRect(0, 216, TFT_WIDTH, 24, TFT_HOME_NAVY);
+  drawTftCenteredText("SELECT FOOD + OK", 224, 1, TFT_HOME_CREAM);
+}
+
+TftDragonFrame currentTftEggActionFrame() {
+  if (!hatchedThisAction) return tftRollingEggFrame(pet.warmth);
+  const int crackFrame = min(static_cast<int>((millis() - screenTimer) / 350),
+                             2);
+  return tftCrackingEggFrame(crackFrame);
+}
+
+void drawTftEggActionNative(const TftDragonFrame& frame) {
+  constexpr uint16_t NEST_BACKGROUND = 0xFE8C;
+  spiTft.fillScreen(NEST_BACKGROUND);
+  spiTft.fillRect(0, 0, TFT_WIDTH, 34, 0xFD20);
+  drawTftCenteredText(hatchedThisAction ? "HATCHED!" : "WARM", 10, 2,
+                      ST77XX_WHITE);
+  drawTftSpriteOnSolid(frame, 64, 52, NEST_BACKGROUND);
+  if (hatchedThisAction) {
+    drawTftCenteredText("WELCOME, BABY DRAGON!", 184, 1, TFT_HOME_NAVY);
+  } else if (selectedMenu == MENU_FOOD) {
+    char warmthLabel[16];
+    snprintf(warmthLabel, sizeof(warmthLabel), "WARM %u/%u", pet.warmth,
+             EGG_WARMTH_REQUIRED);
+    drawTftCenteredText(warmthLabel, 182, 2, TFT_HOME_NAVY);
+  } else {
+    drawTftCenteredText("FOOD: WARM FIRST", 184, 1, TFT_HOME_NAVY);
+  }
 }
 
 void beginTftUi() {
@@ -274,71 +776,171 @@ void beginTftUi() {
 }
 
 void drawTftUi() {
-  constexpr int16_t CONTENT_X = 8;
-  constexpr int16_t CONTENT_Y = 40;
-  constexpr int16_t CONTENT_WIDTH = 224;
-  constexpr int16_t CONTENT_HEIGHT = 112;
-  constexpr uint16_t PANEL_BACKGROUND = 0x0000;
-  static bool firstFrame = true;
   static int lastHunger = -1;
   static int lastHappiness = -1;
   static int lastHealth = -1;
   static int lastCleanliness = -1;
   static int lastLifeStage = -1;
+  static int lastTftScreen = -1;
+  static int lastTftBootPhase = -1;
+  static int lastSelectedMenu = -1;
+  static int lastFatigue = -1;
+  static int lastWarmth = -1;
+  static int lastTftDragonX = -1;
+  static const uint16_t* lastTftDragonPixels = nullptr;
 
-  const uint16_t accent = tftAccentColor();
-  if (firstFrame) {
-    spiTft.fillScreen(TFT_UI_BACKGROUND);
-    firstFrame = false;
+  if (bootPhase != BOOT_DONE) {
+    drawTftBootNative();
+    lastTftScreen = -1;
+    lastTftDragonX = -1;
+    lastTftBootPhase = static_cast<int>(bootPhase);
+    lastTftDragonPixels = nullptr;
+    return;
   }
-  spiTft.fillRect(0, 0, TFT_WIDTH, 32, accent);
-  drawTftCenteredText(tftScreenLabel(), 9, 2, ST77XX_WHITE);
-  spiTft.setTextSize(1);
-  spiTft.setTextColor(ST77XX_WHITE);
-  spiTft.setCursor(TFT_WIDTH - 30, 22);
-  spiTft.print(FIRMWARE_VERSION);
 
-  uint16_t line[CONTENT_WIDTH];
-  const uint8_t* source = display.getBuffer();
-  for (int16_t targetY = 0; targetY < CONTENT_HEIGHT; ++targetY) {
-    const uint16_t sourceY =
-        static_cast<uint32_t>(targetY) * SCREEN_HEIGHT / CONTENT_HEIGHT;
-    for (int16_t targetX = 0; targetX < CONTENT_WIDTH; ++targetX) {
-      const uint16_t sourceX =
-          static_cast<uint32_t>(targetX) * SCREEN_WIDTH / CONTENT_WIDTH;
-      const uint8_t sourceByte =
-          source[sourceX + (sourceY / 8) * SCREEN_WIDTH];
-      line[targetX] = sourceByte & (1U << (sourceY & 7))
-                          ? accent
-                          : PANEL_BACKGROUND;
+  const bool nativeSleepNotice = powerState == POWER_PREPARING_SLEEP;
+  if (nativeSleepNotice) {
+    drawTftSleepNoticeNative();
+    lastTftScreen = -1;
+    lastTftDragonPixels = dragon_sleeping_pixels;
+    return;
+  }
+
+  const bool nativeEggAction = powerState == POWER_ACTIVE &&
+                               currentScreen == SCREEN_FOOD &&
+                               (pet.lifeStage == STAGE_EGG ||
+                                hatchedThisAction);
+  if (nativeEggAction) {
+    const TftDragonFrame eggFrame = currentTftEggActionFrame();
+    const bool fullRedraw =
+        lastTftScreen != static_cast<int>(currentScreen) ||
+        lastTftBootPhase != static_cast<int>(bootPhase);
+    if (fullRedraw) drawTftEggActionNative(eggFrame);
+    else if (lastTftDragonPixels != eggFrame.pixels)
+      drawTftSpriteOnSolid(eggFrame, 64, 52, 0xFE8C);
+    lastTftScreen = static_cast<int>(currentScreen);
+    lastTftBootPhase = static_cast<int>(bootPhase);
+    lastTftDragonPixels = eggFrame.pixels;
+    lastWarmth = pet.warmth;
+    lastTftDragonX = -1;
+    return;
+  }
+
+  const bool nativeEggHome = powerState == POWER_ACTIVE &&
+                             currentScreen == SCREEN_MAIN &&
+                             pet.lifeStage == STAGE_EGG;
+  if (nativeEggHome) {
+    const TftDragonFrame eggFrame =
+        tftRollingEggFrame((millis() / 300) % 4);
+    const bool fullRedraw =
+        lastTftScreen != static_cast<int>(currentScreen) ||
+        lastTftBootPhase != static_cast<int>(bootPhase) ||
+        lastWarmth < 0;
+    if (fullRedraw) drawTftEggHomeNative(eggFrame);
+    else {
+      if (lastTftDragonPixels != eggFrame.pixels)
+        drawTftSpriteOnSolid(eggFrame, 64, 48, 0xFE8C);
+      if (lastSelectedMenu != static_cast<int>(selectedMenu) ||
+          lastWarmth != pet.warmth) drawTftEggHomeDetails();
     }
-    spiTft.drawRGBBitmap(CONTENT_X, CONTENT_Y + targetY, line,
-                         CONTENT_WIDTH, 1);
+    lastTftScreen = static_cast<int>(currentScreen);
+    lastTftBootPhase = static_cast<int>(bootPhase);
+    lastSelectedMenu = static_cast<int>(selectedMenu);
+    lastWarmth = pet.warmth;
+    lastTftDragonPixels = eggFrame.pixels;
+    lastTftDragonX = -1;
+    return;
   }
-  spiTft.drawRect(CONTENT_X - 1, CONTENT_Y - 1, CONTENT_WIDTH + 2,
-                  CONTENT_HEIGHT + 2, accent);
 
-  if (pet.hunger != lastHunger) {
-    drawTftStat("FOOD", pet.hunger, 8, 164, 0xFD20);
+  const bool nativeStatus = powerState == POWER_ACTIVE &&
+                            currentScreen == SCREEN_STATUS;
+  if (nativeStatus) {
+    if (lastTftScreen != static_cast<int>(currentScreen) ||
+        lastTftBootPhase != static_cast<int>(bootPhase)) {
+      drawTftStatusNative();
+    }
+    lastTftScreen = static_cast<int>(currentScreen);
+    lastTftBootPhase = static_cast<int>(bootPhase);
+    lastTftDragonPixels = nullptr;
+    lastTftDragonX = -1;
+    return;
+  }
+
+  const bool nativeAction = bootPhase == BOOT_DONE &&
+                            powerState == POWER_ACTIVE &&
+                            pet.lifeStage != STAGE_EGG &&
+                            !hatchedThisAction &&
+                            (currentScreen == SCREEN_FOOD ||
+                             currentScreen == SCREEN_PLAY ||
+                             currentScreen == SCREEN_MEDICINE ||
+                             currentScreen == SCREEN_CLEAN ||
+                             currentScreen == SCREEN_REST);
+  if (nativeAction) {
+    const TftDragonFrame dragonFrame = currentTftActionFrame();
+    const bool fullRedraw =
+        lastTftScreen != static_cast<int>(currentScreen) ||
+        lastTftBootPhase != static_cast<int>(bootPhase);
+    if (fullRedraw) drawTftActionNative(dragonFrame);
+    else if (lastTftDragonPixels != dragonFrame.pixels)
+      drawTftDragonOnSolid(dragonFrame, 43, tftActionBackground());
+    lastTftScreen = static_cast<int>(currentScreen);
+    lastTftBootPhase = static_cast<int>(bootPhase);
+    lastTftDragonPixels = dragonFrame.pixels;
+    lastTftDragonX = -1;
+    return;
+  }
+
+  const bool nativeHome = bootPhase == BOOT_DONE &&
+                          powerState == POWER_ACTIVE &&
+                          currentScreen == SCREEN_MAIN &&
+                          pet.lifeStage != STAGE_EGG;
+  if (nativeHome) {
+    const TftDragonFrame dragonFrame = currentTftHomeDragonFrame();
+    const int16_t dragonX = tftCreatureX();
+    const bool fullRedraw =
+        lastTftScreen != static_cast<int>(currentScreen) ||
+        lastTftBootPhase != static_cast<int>(bootPhase) ||
+        lastLifeStage < 0;
+    if (fullRedraw) {
+      drawTftHomeNative();
+    } else {
+      if (lastHunger != pet.hunger)
+        drawTftHomeStat(MENU_FOOD, pet.hunger, 0, 0xFD20);
+      if (lastHappiness != pet.happiness)
+        drawTftHomeStat(MENU_PLAY, pet.happiness, 1, 0xF81F);
+      if (lastHealth != pet.health)
+        drawTftHomeStat(MENU_MEDICINE, pet.health, 2, 0xF940);
+      if (lastCleanliness != pet.cleanliness)
+        drawTftHomeStat(MENU_CLEAN, pet.cleanliness, 3, 0x05FF);
+      if (lastFatigue != pet.fatigue)
+        drawTftHomeStat(MENU_SLEEP, 100 - pet.fatigue, 4, 0xA81F);
+      if (lastLifeStage != static_cast<int>(pet.lifeStage))
+        drawTftHomeStat(MENU_STATUS, tftLifeStageProgress(), 5, 0x07F0);
+      if (lastSelectedMenu != static_cast<int>(selectedMenu)) {
+        if (lastSelectedMenu >= 0 && lastSelectedMenu < MENU_COUNT) {
+          drawTftHomeMenuItem(static_cast<MenuItem>(lastSelectedMenu), false);
+        }
+        drawTftHomeMenuItem(selectedMenu, true);
+      }
+      if (lastTftDragonPixels != dragonFrame.pixels ||
+          lastTftDragonX != dragonX) {
+        drawTftHomeDragon(dragonFrame, dragonX, lastTftDragonX);
+      }
+    }
+    lastTftScreen = static_cast<int>(currentScreen);
+    lastTftBootPhase = static_cast<int>(bootPhase);
+    lastSelectedMenu = static_cast<int>(selectedMenu);
     lastHunger = pet.hunger;
-  }
-  if (pet.happiness != lastHappiness) {
-    drawTftStat("HAPPY", pet.happiness, 126, 164, ST77XX_MAGENTA);
     lastHappiness = pet.happiness;
-  }
-  if (pet.health != lastHealth) {
-    drawTftStat("HP", pet.health, 8, 195, ST77XX_RED);
     lastHealth = pet.health;
-  }
-  if (pet.cleanliness != lastCleanliness) {
-    drawTftStat("CLEAN", pet.cleanliness, 126, 195, ST77XX_CYAN);
     lastCleanliness = pet.cleanliness;
-  }
-  if (static_cast<int>(pet.lifeStage) != lastLifeStage) {
-    spiTft.fillRect(0, 224, TFT_WIDTH, 16, TFT_UI_BACKGROUND);
-    drawTftCenteredText(lifeStageLabel(), 226, 1, ST77XX_WHITE);
+    lastFatigue = pet.fatigue;
     lastLifeStage = static_cast<int>(pet.lifeStage);
+    lastTftDragonPixels = dragonFrame.pixels;
+    lastTftDragonX = dragonX;
+    return;
   }
+
 }
 
 bool saveCurrentPet() {
@@ -448,32 +1050,6 @@ void soundRest() { queueSound(SOUND_REST, sizeof(SOUND_REST) / sizeof(SOUND_REST
 
 void goToScreen(ScreenState newScreen);
 
-void drawHeader(const char* screenLabel) {
-  display.setTextColor(SSD1306_WHITE);
-  display.setTextSize(1);
-  display.setCursor(2, 4);
-  display.print(screenLabel);
-  display.setCursor(SCREEN_WIDTH - 24, 4);
-  display.print(FIRMWARE_VERSION);
-}
-
-void drawMainMenuItem(int x, const char* label, bool selected) {
-  display.setCursor(x, 4);
-  display.print(selected ? ">" : " ");
-  display.print(label);
-}
-
-void drawMainMenu() {
-  display.setTextColor(SSD1306_WHITE);
-  display.setTextSize(1);
-  drawMainMenuItem(0, "FD", selectedMenu == MENU_FOOD);
-  drawMainMenuItem(21, "PL", selectedMenu == MENU_PLAY);
-  drawMainMenuItem(42, "MD", selectedMenu == MENU_MEDICINE);
-  drawMainMenuItem(63, "CL", selectedMenu == MENU_CLEAN);
-  drawMainMenuItem(84, "SL", selectedMenu == MENU_SLEEP);
-  drawMainMenuItem(105, "ST", selectedMenu == MENU_STATUS);
-}
-
 const char* menuTitle(MenuItem menu) {
   if (pet.lifeStage == STAGE_EGG) {
     return menu == MENU_FOOD ? "WARM" : "WARM ME FIRST";
@@ -489,83 +1065,20 @@ const char* menuTitle(MenuItem menu) {
   return "";
 }
 
-void drawCenteredText(const char* text, int yPosition) {
-  int16_t x;
-  int16_t y;
-  uint16_t width;
-  uint16_t height;
-  display.getTextBounds(text, 0, yPosition, &x, &y, &width, &height);
-  display.setCursor((SCREEN_WIDTH - width) / 2, yPosition);
-  display.print(text);
-}
-
-void drawMenuTitle(MenuItem menu) {
-  drawCenteredText(menuTitle(menu), 16);
-}
-
-void drawCreature(int x, int y, bool blink = false,
-                  CreatureExpression expression = EXPRESSION_AUTO,
-                  bool walking = false) {
-  const unsigned char* sprite;
-  if (expression == EXPRESSION_HAPPY) sprite = dragon_happy;
-  else if (expression == EXPRESSION_SLEEPING) sprite = dragon_sleeping;
-  else if (pet.health < 30) sprite = dragon_sick;
-  else if (pet.hunger < 25) sprite = dragon_hungry;
-  else if (pet.happiness < 25) sprite = dragon_sad;
-  else if (pet.fatigue >= 50) sprite = idleFrame ? dragon_tired_02 : dragon_tired_01;
-  else if (blink) sprite = dragon_blink;
-  else if (walking && creatureMoveRight) {
-    sprite = idleFrame ? dragon_walk_right_02 : dragon_walk_right_01;
-  } else if (walking) {
-    sprite = idleFrame ? dragon_walk_left_02 : dragon_walk_left_01;
-  }
-  else if (idleFrame) sprite = dragon_idle2;
-  else sprite = dragon_idle1;
-  display.drawBitmap(x, y, sprite, DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
-}
 
 void drawBootEggFrame() {
-  display.clearDisplay();
-  const unsigned char* eggFrames[] = {
-      egg_roll_01, egg_roll_02, egg_roll_03, egg_roll_04};
-  const unsigned char* egg = eggFrames[bootFrame % 4];
-  display.drawBitmap(bootEggX, BOOT_EGG_Y, egg,
-                     EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT, SSD1306_WHITE);
   presentDisplay();
 }
 
 void drawBootCrackedEgg() {
-  display.clearDisplay();
-  const unsigned char* crackFrames[] = {egg_crack_01, egg_crack_02, egg_cracked};
-  display.drawBitmap(BOOT_EGG_END_X, BOOT_EGG_Y, crackFrames[bootFrame],
-                     EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT, SSD1306_WHITE);
   presentDisplay();
 }
 
 void drawBootHello() {
-  display.clearDisplay();
-  if (pet.lifeStage == STAGE_EGG) {
-    display.drawBitmap(52, 20, egg_roll_01, EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT,
-                       SSD1306_WHITE);
-  } else {
-    drawCreature(44, 16, false);
-  }
-  display.setTextSize(1);
-  if (pet.lifeStage == STAGE_EGG) {
-    drawCenteredText("OK: WARM ME", 56);
-  } else {
-    display.setCursor(petRestored ? 28 : 44, 56);
-    display.print(petRestored ? "Welcome back!" : "Hello!");
-  }
   presentDisplay();
 }
 
 void drawSleepScreen() {
-  display.clearDisplay();
-  drawCreature(44, 16, false, EXPRESSION_SLEEPING);
-  display.setTextSize(1);
-  display.setCursor(46, 56);
-  display.print("Zzz...");
   presentDisplay();
 }
 
@@ -586,16 +1099,14 @@ void startBootAnimation() {
 
 void enterDeepSleep() {
   saveCurrentPet();
-  display.ssd1306_command(SSD1306_DISPLAYOFF);
-  if (ENABLE_SPI_TFT_UI) spiTft.enableDisplay(false);
+  spiTft.enableDisplay(false);
 
   const uint64_t wakePinMask = 1ULL << BTN_OK;
   const esp_err_t wakeupConfigured = esp_deep_sleep_enable_gpio_wakeup(
       wakePinMask, ESP_GPIO_WAKEUP_GPIO_LOW);
   if (wakeupConfigured != ESP_OK) {
     Serial.println("Deep sleep wake setup failed");
-    display.ssd1306_command(SSD1306_DISPLAYON);
-    if (ENABLE_SPI_TFT_UI) spiTft.enableDisplay(true);
+    spiTft.enableDisplay(true);
     powerState = POWER_ACTIVE;
     lastUserActivityAt = millis();
     return;
@@ -645,7 +1156,6 @@ void updateBootAnimation() {
         if (++bootFrame < 3) drawBootCrackedEgg();
         else {
           bootPhase = BOOT_CLEAR;
-          display.clearDisplay();
           presentDisplay();
         }
       }
@@ -673,126 +1183,36 @@ void updateBootAnimation() {
 }
 
 void drawMainScreen() {
-  display.clearDisplay();
-  drawMainMenu();
-  if (pet.lifeStage == STAGE_EGG ||
-      millis() - menuTitleShownAt < MENU_TITLE_DURATION) {
-    drawMenuTitle(selectedMenu);
-  }
-  if (pet.lifeStage == STAGE_EGG) {
-    display.drawBitmap(52, 26, egg_roll_01, EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT,
-                       SSD1306_WHITE);
-    display.setTextSize(1);
-    drawCenteredText("FD TO WARM", 54);
-  } else {
-    drawCreature(creatureX, 24, creatureBlink, EXPRESSION_AUTO, true);
-  }
   presentDisplay();
 }
 
 void drawFoodScreen() {
-  display.clearDisplay();
-  if (pet.lifeStage == STAGE_EGG || hatchedThisAction) {
-    drawMainMenu();
-    display.drawBitmap(52, 24, hatchedThisAction ? egg_cracked : egg_roll_01,
-                       EGG_SPRITE_WIDTH, EGG_SPRITE_HEIGHT, SSD1306_WHITE);
-    display.setTextSize(1);
-    if (hatchedThisAction) drawCenteredText("HATCHED!", 16);
-    else {
-      display.setCursor(38, 52);
-      if (selectedMenu == MENU_FOOD) {
-        display.print("WARM ");
-        display.print(pet.warmth);
-        display.print('/');
-        display.print(EGG_WARMTH_REQUIRED);
-      } else {
-        display.print("FD: WARM FIRST");
-      }
-    }
-    presentDisplay();
-    return;
-  }
-  drawMainMenu();
-  const bool foodFrame = ((millis() - screenTimer) / 300) % 2 != 0;
-  const unsigned char* foodSprite = foodFrame ? dragon_food_02 : dragon_food_01;
-  display.drawBitmap(44, 20, foodSprite,
-                     DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
-  display.setTextSize(1);
-  display.setCursor(4, 40);
-  display.print("MIAM!");
   presentDisplay();
 }
 
 void drawPlayScreen() {
-  display.clearDisplay();
-  drawMainMenu();
-  drawCreature(44, actionFrame ? 16 : 20, false, EXPRESSION_HAPPY);
-  display.setTextSize(1);
-  display.setCursor(94, 40);
-  display.print("YAY!");
   presentDisplay();
 }
 
 void drawMedicineScreen() {
-  display.clearDisplay();
-  drawMainMenu();
-  const unsigned char* medicineSprite =
-      actionFrame ? dragon_medicine_02 : dragon_medicine_01;
-  display.drawBitmap(44, 24, medicineSprite,
-                     DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
-  display.setTextSize(1);
-  drawCenteredText(medicineHelped ? "FEEL BETTER!" : "NO MEDICINE", 16);
   presentDisplay();
 }
 
 void drawCleanScreen() {
-  display.clearDisplay();
-  drawMainMenu();
-  const unsigned char* cleanSprite = actionFrame ? dragon_clean_02 : dragon_clean_01;
-  display.drawBitmap(44, 24, cleanSprite,
-                     DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
-  display.setTextSize(1);
-  drawCenteredText("ALL CLEAN!", 16);
   presentDisplay();
 }
 
 void drawRestScreen() {
-  display.clearDisplay();
-  drawMainMenu();
-  const unsigned char* sleepSprite;
-  if (sleepAccepted) {
-    sleepSprite = actionFrame ? dragon_sleep_02 : dragon_sleep_01;
-  } else {
-    sleepSprite = actionFrame ? dragon_sleep_refuse_02 : dragon_sleep_refuse_01;
-  }
-  display.drawBitmap(44, 24, sleepSprite,
-                     DRAGON_SPRITE_WIDTH, DRAGON_SPRITE_HEIGHT, SSD1306_WHITE);
-  display.setTextSize(1);
-  if (sleepAccepted) drawCenteredText("Zzz...", 16);
-  else if (pet.stubbornness == 2) drawCenteredText("ONE MORE!", 16);
-  else drawCenteredText("NOT TIRED!", 16);
   presentDisplay();
 }
 
 void drawStatusScreen() {
-  display.clearDisplay();
-  drawHeader("STATUS");
-  display.setTextSize(1);
-  display.setCursor(3, 18); display.print("FOOD "); display.print(pet.hunger);
-  display.setCursor(70, 18); display.print("HAPPY "); display.print(pet.happiness);
-  display.setCursor(3, 33); display.print("HP "); display.print(pet.health);
-  display.setCursor(70, 33); display.print("CLEAN "); display.print(pet.cleanliness);
-  display.setCursor(3, 49); display.print("FAT "); display.print(pet.fatigue);
-  display.setCursor(47, 49); display.print(lifeStageLabel());
-  display.setCursor(79, 49); display.print("AGE "); display.print(petAgeMinutes()); display.print("M");
   presentDisplay();
 }
 
 void goToScreen(ScreenState newScreen) {
   currentScreen = newScreen;
   screenTimer = millis();
-  if (newScreen == SCREEN_MAIN) menuTitleShownAt = screenTimer;
-  if (newScreen == SCREEN_FOOD || newScreen == SCREEN_PLAY) actionFrame = false;
   switch (currentScreen) {
     case SCREEN_MAIN: drawMainScreen(); break;
     case SCREEN_FOOD: drawFoodScreen(); break;
@@ -957,7 +1377,6 @@ void updateCreatureAnimation() {
   }
   if (now - lastMoveTick >= CREATURE_MOVE_INTERVAL) {
     lastMoveTick = now;
-    actionFrame = !actionFrame;
     if (creatureMoveRight) {
       creatureX++;
       if (creatureX >= CREATURE_MAX_X) creatureMoveRight = false;
@@ -1060,7 +1479,6 @@ void handleButtons() {
       int menu = static_cast<int>(selectedMenu) - 1;
       if (menu < 0) menu = MENU_COUNT - 1;
       selectedMenu = static_cast<MenuItem>(menu);
-      menuTitleShownAt = now;
       drawMainScreen();
     }
     if (rightPressed) {
@@ -1068,7 +1486,6 @@ void handleButtons() {
       int menu = static_cast<int>(selectedMenu) + 1;
       if (menu >= MENU_COUNT) menu = 0;
       selectedMenu = static_cast<MenuItem>(menu);
-      menuTitleShownAt = now;
       drawMainScreen();
     }
     if (okPressed) {
@@ -1090,12 +1507,7 @@ void setup() {
   const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
   wokeFromDeepSleep = wakeCause != ESP_SLEEP_WAKEUP_UNDEFINED;
   Serial.printf("Wake cause: %d\n", wakeCause);
-  Wire.begin(SDA_PIN, SCL_PIN);
-  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
-    Serial.println("OLED error");
-    while (true);
-  }
-  if (ENABLE_SPI_TFT_UI) beginTftUi();
+  beginTftUi();
   pinMode(BTN_LEFT, INPUT_PULLUP);
   pinMode(BTN_OK, INPUT_PULLUP);
   pinMode(BTN_RIGHT, INPUT_PULLUP);

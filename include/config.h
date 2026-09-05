@@ -2,17 +2,12 @@
 
 #include <Arduino.h>
 
-constexpr uint8_t SCREEN_WIDTH = 128;
-constexpr uint8_t SCREEN_HEIGHT = 64;
-constexpr uint8_t SDA_PIN = 0;
-constexpr uint8_t SCL_PIN = 1;
-constexpr uint8_t OLED_ADDR = 0x3C;
 constexpr uint8_t BTN_LEFT = 21;
 constexpr uint8_t BTN_OK = 3;
 constexpr uint8_t BTN_RIGHT = 10;
 constexpr uint8_t BUZZER_PIN = 5;
 
-// ST7789 sans CS, valide en SPI mode 3 sur le prototype.
+// ZJY154S0800TG01 (ST7789) : CS est câble à GND, donc -1 côté logiciel.
 constexpr uint8_t TFT_DC_PIN = 7;
 constexpr uint8_t TFT_MOSI_PIN = 6;
 constexpr uint8_t TFT_SCLK_PIN = 4;
@@ -20,7 +15,6 @@ constexpr uint8_t TFT_RST_PIN = 20;
 constexpr uint16_t TFT_WIDTH = 240;
 constexpr uint16_t TFT_HEIGHT = 240;
 constexpr uint32_t TFT_SPI_FREQUENCY = 32000000;
-constexpr bool ENABLE_SPI_TFT_UI = true;
 
 // Affiche discretement dans le coin droit des ecrans de transition.
 constexpr char FIRMWARE_VERSION[] = "v0.6";
@@ -36,6 +30,5 @@ constexpr unsigned long PET_RESET_HOLD_INTERVAL = 5000;
 constexpr unsigned long ACTION_SCREEN_DURATION = 1500;
 constexpr unsigned long STATUS_SCREEN_DURATION = 4000;
 
-// Valeurs courtes pour valider la veille sur le prototype ; à augmenter pour la batterie.
-constexpr unsigned long INACTIVITY_SLEEP_INTERVAL = 60000;
+constexpr unsigned long INACTIVITY_SLEEP_INTERVAL = 10UL * 60UL * 1000UL;
 constexpr unsigned long SLEEP_NOTICE_DURATION = 1000;

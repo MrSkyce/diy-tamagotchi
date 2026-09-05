@@ -1,27 +1,24 @@
 #include <Arduino.h>
 
-constexpr uint8_t TFT_DC = 7;
-constexpr uint8_t TFT_MOSI = 6;
-constexpr uint8_t TFT_SCLK = 4;
-constexpr uint8_t TFT_RST = 20;
-constexpr uint16_t TFT_SIZE = 240;
+#include "config.h"
+
 constexpr unsigned int SPI_HALF_PERIOD_US = 5;
 
 void writeSpiByte(uint8_t value) {
   for (uint8_t bit = 0x80; bit != 0; bit >>= 1) {
     // SPI mode 3 : horloge au repos à HIGH, premier front descendant.
-    digitalWrite(TFT_SCLK, LOW);
-    digitalWrite(TFT_MOSI, value & bit ? HIGH : LOW);
+    digitalWrite(TFT_SCLK_PIN, LOW);
+    digitalWrite(TFT_MOSI_PIN, value & bit ? HIGH : LOW);
     delayMicroseconds(SPI_HALF_PERIOD_US);
-    digitalWrite(TFT_SCLK, HIGH);
+    digitalWrite(TFT_SCLK_PIN, HIGH);
     delayMicroseconds(SPI_HALF_PERIOD_US);
   }
 }
 
 void command(uint8_t value) {
-  digitalWrite(TFT_DC, LOW);
+  digitalWrite(TFT_DC_PIN, LOW);
   writeSpiByte(value);
-  digitalWrite(TFT_DC, HIGH);
+  digitalWrite(TFT_DC_PIN, HIGH);
 }
 
 void data(uint8_t value) { writeSpiByte(value); }
@@ -31,9 +28,9 @@ void setAddressWindow(uint16_t rowStart) {
   data(0);
   data(0);
   data(0);
-  data(TFT_SIZE - 1);
+  data(TFT_WIDTH - 1);
 
-  const uint16_t rowEnd = rowStart + TFT_SIZE - 1;
+  const uint16_t rowEnd = rowStart + TFT_HEIGHT - 1;
   command(0x2B); // RASET
   data(rowStart >> 8);
   data(rowStart);
@@ -44,18 +41,18 @@ void setAddressWindow(uint16_t rowStart) {
 
 void fill(uint16_t rowStart, uint16_t color) {
   setAddressWindow(rowStart);
-  for (uint32_t pixel = 0; pixel < TFT_SIZE * TFT_SIZE; ++pixel) {
+  for (uint32_t pixel = 0; pixel < TFT_WIDTH * TFT_HEIGHT; ++pixel) {
     data(color >> 8);
     data(color);
   }
 }
 
 void initialiseTft() {
-  digitalWrite(TFT_RST, HIGH);
+  digitalWrite(TFT_RST_PIN, HIGH);
   delay(5);
-  digitalWrite(TFT_RST, LOW);
+  digitalWrite(TFT_RST_PIN, LOW);
   delay(20);
-  digitalWrite(TFT_RST, HIGH);
+  digitalWrite(TFT_RST_PIN, HIGH);
   delay(150);
 
   command(0x01); // SWRESET
@@ -74,11 +71,12 @@ void initialiseTft() {
 }
 
 void setup() {
-  for (const uint8_t pin : {TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST}) {
+  for (const uint8_t pin : {
+           TFT_DC_PIN, TFT_MOSI_PIN, TFT_SCLK_PIN, TFT_RST_PIN}) {
     pinMode(pin, OUTPUT);
     digitalWrite(pin, LOW);
   }
-  digitalWrite(TFT_SCLK, HIGH);
+  digitalWrite(TFT_SCLK_PIN, HIGH);
   initialiseTft();
 }
 

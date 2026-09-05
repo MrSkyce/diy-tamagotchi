@@ -1,8 +1,11 @@
 #include <Arduino.h>
 
-constexpr uint8_t TEST_PINS[] = {5, 6, 7, 20};
-constexpr const char* TEST_PIN_NAMES[] = {"SCL GPIO5", "SDA GPIO6", "DC GPIO7",
-                                          "RES GPIO20"};
+#include "config.h"
+
+constexpr uint8_t TEST_PINS[] = {
+    TFT_SCLK_PIN, TFT_MOSI_PIN, TFT_DC_PIN, TFT_RST_PIN};
+constexpr const char* TEST_PIN_NAMES[] = {
+    "SCLK GPIO4", "MOSI GPIO6", "DC GPIO7", "RST GPIO20"};
 constexpr size_t TEST_PIN_COUNT = sizeof(TEST_PINS) / sizeof(TEST_PINS[0]);
 constexpr unsigned long LOW_INTERVAL_MS = 2000;
 constexpr unsigned long HIGH_INTERVAL_MS = 10000;

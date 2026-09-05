@@ -1,20 +1,14 @@
 #include <Arduino.h>
 #include <SPI.h>
 
-constexpr uint8_t TFT_DC = 7;
-constexpr uint8_t TFT_MOSI = 6;
-constexpr uint8_t TFT_MISO = 5; // Non connecte, requis par SPI.begin().
-constexpr uint8_t TFT_SCLK = 4;
-constexpr uint8_t TFT_RST = 20;
-constexpr uint16_t TFT_SIZE = 240;
-constexpr uint32_t TFT_SPI_FREQUENCY = 32000000;
+#include "config.h"
 
 void writeSpiByte(uint8_t value) { SPI.transfer(value); }
 
 void command(uint8_t value) {
-  digitalWrite(TFT_DC, LOW);
+  digitalWrite(TFT_DC_PIN, LOW);
   writeSpiByte(value);
-  digitalWrite(TFT_DC, HIGH);
+  digitalWrite(TFT_DC_PIN, HIGH);
 }
 
 void data(uint8_t value) { writeSpiByte(value); }
@@ -24,35 +18,35 @@ void setAddressWindow() {
   data(0);
   data(0);
   data(0);
-  data(TFT_SIZE - 1);
+  data(TFT_WIDTH - 1);
 
   command(0x2B); // RASET : lignes 0 a 239
   data(0);
   data(0);
   data(0);
-  data(TFT_SIZE - 1);
+  data(TFT_HEIGHT - 1);
   command(0x2C); // RAMWR
 }
 
 void fill(uint16_t color) {
-  uint8_t line[TFT_SIZE * 2];
-  for (uint16_t pixel = 0; pixel < TFT_SIZE; ++pixel) {
+  uint8_t line[TFT_WIDTH * 2];
+  for (uint16_t pixel = 0; pixel < TFT_WIDTH; ++pixel) {
     line[pixel * 2] = color >> 8;
     line[pixel * 2 + 1] = color;
   }
 
   setAddressWindow();
-  for (uint16_t row = 0; row < TFT_SIZE; ++row) {
+  for (uint16_t row = 0; row < TFT_HEIGHT; ++row) {
     SPI.writeBytes(line, sizeof(line));
   }
 }
 
 void initialiseTft() {
-  digitalWrite(TFT_RST, HIGH);
+  digitalWrite(TFT_RST_PIN, HIGH);
   delay(5);
-  digitalWrite(TFT_RST, LOW);
+  digitalWrite(TFT_RST_PIN, LOW);
   delay(20);
-  digitalWrite(TFT_RST, HIGH);
+  digitalWrite(TFT_RST_PIN, HIGH);
   delay(150);
 
   command(0x01); // SWRESET
@@ -71,11 +65,11 @@ void initialiseTft() {
 }
 
 void setup() {
-  pinMode(TFT_DC, OUTPUT);
-  pinMode(TFT_RST, OUTPUT);
-  digitalWrite(TFT_DC, HIGH);
+  pinMode(TFT_DC_PIN, OUTPUT);
+  pinMode(TFT_RST_PIN, OUTPUT);
+  digitalWrite(TFT_DC_PIN, HIGH);
 
-  SPI.begin(TFT_SCLK, TFT_MISO, TFT_MOSI, -1);
+  SPI.begin(TFT_SCLK_PIN, -1, TFT_MOSI_PIN, -1);
   SPI.beginTransaction(
       SPISettings(TFT_SPI_FREQUENCY, MSBFIRST, SPI_MODE3));
   initialiseTft();

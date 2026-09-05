@@ -3,24 +3,24 @@
 #include <Adafruit_ST7789.h>
 #include <SPI.h>
 
-// Module Y-PS1.30-V2.0 : pas de broche CS exposée.
-constexpr int8_t TFT_CS = -1;
-constexpr int8_t TFT_DC = 7;
-constexpr int8_t TFT_RST = 20;
+#include "config.h"
 
-Adafruit_ST7789 tft(&SPI, TFT_CS, TFT_DC, TFT_RST);
+// Module ZJY154S0800TG01 : broche CS exposée mais reliée à GND.
+constexpr int8_t TFT_CS = -1;
+
+Adafruit_ST7789 tft(&SPI, TFT_CS, TFT_DC_PIN, TFT_RST_PIN);
 
 void setup() {
   // La bibliothèque initialise le bus matériel à 32 MHz.
-  tft.init(240, 240, SPI_MODE3);
+  tft.init(TFT_WIDTH, TFT_HEIGHT, SPI_MODE3);
   // En rotation 0 (image retournee de 180 degres), l'offset Adafruit de
   // 80 lignes correspond au raccordement interne de cette dalle.
   tft.setRotation(0);
   tft.invertDisplay(true);
-  tft.setSPISpeed(32000000);
+  tft.setSPISpeed(TFT_SPI_FREQUENCY);
 
   tft.fillScreen(ST77XX_BLACK);
-  tft.drawRect(0, 0, 240, 240, ST77XX_WHITE);
+  tft.drawRect(0, 0, TFT_WIDTH, TFT_HEIGHT, ST77XX_WHITE);
 
   tft.setTextColor(ST77XX_WHITE);
   tft.setTextSize(3);
