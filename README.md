@@ -99,8 +99,10 @@ GPIO20 reste pour l'instant une sortie RESET du TFT. Ne pas connecter le MISO
 du W25Q64 à GPIO20 avant le téléversement du firmware adapté.
 
 Le plan cible utilise GPIO0/1 pour le PCF8523, GPIO2 pour le CS du W25Q64,
-GPIO8 pour BLK via un transistor PNP BC327, GPIO9 pour le CS du TFT et GPIO20
-pour MISO. Le RESET du TFT sera relié à EN/RST. `SQW` du PCF8523 reste
+GPIO8 directement pour BLK, GPIO9 pour le CS du TFT et GPIO20 pour MISO. Le
+RESET du TFT utilise un réseau autonome de 10 kΩ vers 3,3 V et 100 nF vers GND,
+car le Super Mini ne possède pas de RESET/EN exposé. Le module TFT intègre déjà
+le transistor de BLK ; HIGH l'allume et LOW l'éteint. `SQW` du PCF8523 reste
 déconnecté lors de la première intégration.
 
 La barre inférieure du HOME expose six icônes : FOOD, PLAY, MEDICINE, CLEAN,

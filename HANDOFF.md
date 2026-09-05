@@ -16,27 +16,10 @@ graphique historique 1-bit et la dépendance SSD1306 ont été retirées.
 - compilation et téléversement de la migration complète validés ; les 33 assets
   couleur et leurs animations normalisées ont été validés sur le TFT réel.
 
-Instantané au 5 septembre 2026 : la migration TFT couleur est terminée et
-validée, mais elle n'est pas encore commitée. La branche `main` et
-`origin/main` pointent encore sur `ee51f16`; le worktree contient l'intégralité
-de la migration. Ne pas nettoyer ni restaurer ces changements. La prochaine
-action Git est à effectuer uniquement sur demande explicite.
-
-### Diff attendu avant commit
-
-Les suppressions massives visibles dans `git status` sont intentionnelles :
-
-- ancien sketch racine `TamagotchiESP32C3.ino` ;
-- anciens BMP monochromes dans `assets/boot/`, `assets/sprites/` et
-  `assets/sprites_24x24_backup/` ;
-- anciens headers `include/generated_sprites.h` et `include/sprites.h` ;
-- anciens outils `draft_boot_eggs.py`, `draft_dragon_sprites.py`,
-  `generate_sprites.py` et `scale_sprites.py`.
-
-Ils sont remplacés par `assets/tft/`, `tools/generate_tft_assets.py` et
-`include/generated_tft_assets.h`. Ces trois chemins sont encore non suivis tant
-que la migration n'a pas été ajoutée à Git ; ne pas oublier de les inclure lors
-du futur `git add -A`.
+Instantané au 5 septembre 2026 : la migration TFT couleur validée est commitée
+dans `2875ae6`. Le plan d'extension matérielle a ensuite été ajouté puis
+précisé. Le câblage cible n'est pas encore pris en charge par le firmware et
+doit être validé progressivement sur le prototype réel.
 
 ## Matériel
 
@@ -114,7 +97,7 @@ complémentaires. Avec le pilote Adafruit en rotation 0, ne pas forcer l'offset
 - `assets/tft/*.bmp` : source graphique couleur unique ;
 - `tools/generate_tft_assets.py` : BMP vers RGB565 et masque ;
 - `include/generated_tft_assets.h` : header généré et versionné ;
-- `HARDWARE_EXPANSION_PLAN.md` : futur pinout W25Q64, PCF8523 et BLK ;
+- `HARDWARE_EXPANSION_PLAN.md` : câblage cible exhaustif depuis zéro ;
 - `platformio.ini` : firmware et environnements de diagnostic.
 
 `presentDisplay()` appelle directement le compositeur TFT. Il n'existe plus de
@@ -157,8 +140,9 @@ Maintenir gauche et droite cinq secondes efface la sauvegarde.
 - contrôleur TFT désactivé avec `enableDisplay(false)` ;
 - réveil par OK, GPIO3 à LOW.
 
-`BLK` reste alimenté au 3,3 V. Pour une vraie économie d'énergie, le piloter
-via un GPIO adapté et éventuellement un transistor.
+`BLK` reste alimenté au 3,3 V avec le firmware et le câblage actuels. Le montage
+cible le relie directement à GPIO8 : le transistor de puissance est déjà
+intégré au module TFT.
 
 ## Extension matérielle en préparation
 
@@ -166,8 +150,9 @@ Le câblage cible est spécifié dans `HARDWARE_EXPANSION_PLAN.md`. Il ajoute :
 
 - W25Q64 2,7–3,6 V sur le bus SPI partagé, CS GPIO2 et MISO GPIO20 ;
 - TFT CS déplacé de GND vers GPIO9 ;
-- TFT RESET déplacé de GPIO20 vers EN/RST ;
-- commande BLK par GPIO8 via transistor PNP BC327, active à LOW ;
+- TFT RESET autonome avec 10 kΩ vers 3,3 V et 100 nF vers GND, sans GPIO ;
+- BLK relié directement à GPIO8 grâce au S8050 intégré au module, HIGH = allumé
+  et LOW = éteint ;
 - RTC Adafruit PCF8523 sur SDA GPIO0 et SCL GPIO1, adresse `0x68` ;
 - `SQW` non connecté pour la première intégration.
 
