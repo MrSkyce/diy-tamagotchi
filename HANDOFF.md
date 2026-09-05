@@ -114,6 +114,7 @@ complémentaires. Avec le pilote Adafruit en rotation 0, ne pas forcer l'offset
 - `assets/tft/*.bmp` : source graphique couleur unique ;
 - `tools/generate_tft_assets.py` : BMP vers RGB565 et masque ;
 - `include/generated_tft_assets.h` : header généré et versionné ;
+- `HARDWARE_EXPANSION_PLAN.md` : futur pinout W25Q64, PCF8523 et BLK ;
 - `platformio.ini` : firmware et environnements de diagnostic.
 
 `presentDisplay()` appelle directement le compositeur TFT. Il n'existe plus de
@@ -158,6 +159,21 @@ Maintenir gauche et droite cinq secondes efface la sauvegarde.
 
 `BLK` reste alimenté au 3,3 V. Pour une vraie économie d'énergie, le piloter
 via un GPIO adapté et éventuellement un transistor.
+
+## Extension matérielle en préparation
+
+Le câblage cible est spécifié dans `HARDWARE_EXPANSION_PLAN.md`. Il ajoute :
+
+- W25Q64 2,7–3,6 V sur le bus SPI partagé, CS GPIO2 et MISO GPIO20 ;
+- TFT CS déplacé de GND vers GPIO9 ;
+- TFT RESET déplacé de GPIO20 vers EN/RST ;
+- commande BLK par GPIO8 via MOSFET P, active à LOW ;
+- RTC Adafruit PCF8523 sur SDA GPIO0 et SCL GPIO1, adresse `0x68` ;
+- `SQW` non connecté pour la première intégration.
+
+État au 5 septembre 2026 : documentation prête, câblage en cours, aucun support
+logiciel encore ajouté. Le firmware actuel ne doit pas être utilisé avec MISO
+relié à GPIO20, car cette broche est encore configurée comme RESET du TFT.
 
 ## Assets graphiques
 

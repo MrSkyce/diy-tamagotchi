@@ -25,6 +25,7 @@ bibliothèques Adafruit déclarées dans `platformio.ini`.
 - `tools/generate_tft_assets.py` : génère les pixels RGB565 et masques TFT.
 - `include/generated_tft_assets.h` : assets TFT couleur générés.
 - `GRAPHICS_PLAN.md` : contrat graphique et couverture des écrans.
+- `HARDWARE_EXPANSION_PLAN.md` : câblage cible W25Q64, PCF8523 et BLK.
 - `HANDOFF.md` : contexte et roadmap.
 
 ### Écran IPS ST7789
@@ -88,6 +89,19 @@ la mémoire W25Q64 : celle-ci reste volontairement non câblée. Sans `MISO`, le
 peut pas lire les registres du contrôleur. Enfin, `BLK` étant relié directement
 au 3,3 V, le rétroéclairage reste alimenté même lorsque le contrôleur TFT est
 désactivé avant le deep sleep.
+
+### Extension matérielle en cours de câblage
+
+Le pinout cible pour partager le bus SPI avec un W25Q64 3,3 V, ajouter un RTC
+Adafruit PCF8523 et couper réellement BLK est décrit dans
+`HARDWARE_EXPANSION_PLAN.md`. Ce pinout n'est pas encore actif dans le firmware :
+GPIO20 reste pour l'instant une sortie RESET du TFT. Ne pas connecter le MISO
+du W25Q64 à GPIO20 avant le téléversement du firmware adapté.
+
+Le plan cible utilise GPIO0/1 pour le PCF8523, GPIO2 pour le CS du W25Q64,
+GPIO8 pour BLK via un MOSFET P, GPIO9 pour le CS du TFT et GPIO20 pour MISO. Le
+RESET du TFT sera relié à EN/RST. `SQW` du PCF8523 reste déconnecté lors de la
+première intégration.
 
 La barre inférieure du HOME expose six icônes : FOOD, PLAY, MEDICINE, CLEAN,
 SLEEP et STATUS. L'icône sélectionnée est mise en évidence et le nom complet de
