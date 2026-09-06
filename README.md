@@ -155,12 +155,14 @@ effacer la sauvegarde NVS et recréer un nouvel œuf.
 ### Assets couleur TFT
 
 Les sources TFT sont des BMP couleur non compressés placés dans `assets/tft/`.
-Le magenta pur `#FF00FF` représente la transparence. Le générateur
-`tools/generate_tft_assets.py` accepte les BMP 8 ou 24 bits, convertit chaque
-pixel en RGB565 et produit une image RLE destinée à la W25Q64. L'application
+Le magenta pur `#FF00FF` représente la transparence. Le générateur supprime
+aussi les nuances magenta de l'ancien détourage uniquement lorsqu'elles sont
+reliées au fond transparent ; il refuse le build si une nuance de matte reste
+visible. `tools/generate_tft_assets.py` accepte les BMP 8 ou 24 bits, convertit
+chaque pixel en RGB565 et produit une image RLE destinée à la W25Q64. L'application
 charge une seule frame à la fois dans un cache RAM de 25 088 octets. Les
 33 assets mesurent 112×112 px. Ils
-couvrent toutes les expressions et actions du dragon, ses quatre frames de
+couvrent toutes les expressions et actions du dragon, ses quatre keyframes de
 marche, le sommeil, les quatre rotations de l'œuf et ses trois étapes
 d'éclosion. Les rotations animent l'œuf au repos ; les trois fissures sont
 jouées successivement lors du troisième réchauffement.
@@ -168,14 +170,22 @@ jouées successivement lors du troisième réchauffement.
 Le générateur contrôle aussi l'échelle : chaque dragon doit rester dans une
 plage de surface visible commune et deux frames d'une même animation ne peuvent
 pas différer de plus de 12 %. La ligne de sol de deux frames ne peut pas non
-plus varier de plus de 2 pixels. La compilation échoue si ce contrat est violé.
+plus varier de plus de 3 pixels. La compilation échoue si ce contrat est violé.
+
+Les animations à deux keyframes sont rendues en quatre phases de 180 ms : pose A,
+pose A relevée de 1 px, pose B relevée de 1 px, pose B. Ce rebond contrôlé porte
+le cycle à 720 ms sans redessiner le dragon, changer sa palette ou interpoler
+ses pixels. La zone rafraîchie inclut la ligne supplémentaire nécessaire afin
+de ne jamais rogner les cornes, les pattes ou la queue.
 
 Les 33 assets et leurs animations ont été validés sur le TFT réel, puis depuis
 la W25Q64 le 6 septembre 2026, notamment l'échelle, les ancrages et les yeux
 canoniques de `dragon_medicine_01`.
 
-Le format actuel occupe 214 128 octets sur la W25Q64, soit 25,9 % des pixels
+La version nettoyée occupe 212 482 octets sur la W25Q64, soit 25,7 % des pixels
 RGB565 bruts et environ 2,6 % de la mémoire externe. Voir `ASSET_STORAGE.md`
-pour programmer les assets et ajouter de futures frames. Sur le prototype, les
-33 CRC ont été validés depuis la mémoire externe et la frame la plus lente se
-charge en 35,5 ms à 8 MHz.
+pour programmer les assets et ajouter de futures frames. La nouvelle image est
+programmée et ses 33 CRC sont validés depuis la
+mémoire externe : 1,069 s au total et 36,451 ms au pire à 8 MHz. La propreté des
+contours, l'absence de rognage et de scintillement, ainsi que la cadence à quatre
+phases ont été validées sur le TFT réel le 7 septembre 2026.

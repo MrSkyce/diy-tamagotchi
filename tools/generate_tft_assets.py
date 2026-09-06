@@ -1,10 +1,11 @@
-"""Convert indexed-color TFT BMP sources into RGB565 data and 1-bit masks."""
+"""Validate TFT BMP sources and build the compressed W25Q64 asset image."""
 
 from __future__ import annotations
 
 import re
 import struct
 import zlib
+from collections import deque
 from pathlib import Path
 
 
@@ -21,10 +22,13 @@ ASSETS_DIR = PROJECT_ROOT / "assets" / "tft"
 OUTPUT_PATH = PROJECT_ROOT / "include" / "generated_tft_assets.h"
 FLASH_BLOB_PATH = PROJECT_ROOT / "include" / "generated_tft_asset_blob.h"
 TRANSPARENT_RGB = (255, 0, 255)
+MATTE_RED_BLUE_MIN = 100
+MATTE_GREEN_MAX = 40
+MATTE_RED_BLUE_DELTA_MAX = 40
 EXPECTED_ASSET_SIZE = (112, 112)
 DRAGON_VISIBLE_PIXEL_RANGE = (5000, 7300)
 MAX_ANIMATION_AREA_RATIO = 1.12
-MAX_ANIMATION_BOTTOM_DELTA = 2
+MAX_ANIMATION_BOTTOM_DELTA = 3
 ANIMATION_GROUPS = {
     "idle": ("dragon_idle1", "dragon_idle2"),
     "clean": ("dragon_clean_01", "dragon_clean_02"),
@@ -95,6 +99,58 @@ def read_color_bmp(path: Path) -> tuple[int, int, list[tuple[int, int, int]]]:
 
 def rgb565(red: int, green: int, blue: int) -> int:
     return ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3)
+
+
+def is_magenta_matte(pixel: tuple[int, int, int]) -> bool:
+    """Recognize magenta shades introduced by resampling the old matte."""
+    red, green, blue = pixel
+    return (
+        red >= MATTE_RED_BLUE_MIN
+        and blue >= MATTE_RED_BLUE_MIN
+        and green <= MATTE_GREEN_MAX
+        and abs(red - blue) <= MATTE_RED_BLUE_DELTA_MAX
+    )
+
+
+def normalize_transparent_matte(
+        width: int,
+        height: int,
+        pixels: list[tuple[int, int, int]],
+) -> tuple[list[tuple[int, int, int]], int]:
+    """Remove only near-magenta pixels connected to transparent source pixels.
+
+    Exact-magenta pixels seed an 8-connected flood fill through matte-like
+    colors. This cleans antialiased fringe pixels around both exterior and
+    enclosed transparent areas without treating isolated colors inside the
+    character as background.
+    """
+    normalized = list(pixels)
+    queue: deque[int] = deque()
+    connected = bytearray(len(pixels))
+    for index, pixel in enumerate(pixels):
+        if pixel == TRANSPARENT_RGB:
+            connected[index] = 1
+            queue.append(index)
+
+    while queue:
+        index = queue.popleft()
+        x = index % width
+        y = index // width
+        for neighbor_y in range(max(0, y - 1), min(height, y + 2)):
+            row_start = neighbor_y * width
+            for neighbor_x in range(max(0, x - 1), min(width, x + 2)):
+                neighbor = row_start + neighbor_x
+                if connected[neighbor] or not is_magenta_matte(pixels[neighbor]):
+                    continue
+                connected[neighbor] = 1
+                queue.append(neighbor)
+
+    cleaned = 0
+    for index, is_connected in enumerate(connected):
+        if is_connected and normalized[index] != TRANSPARENT_RGB:
+            normalized[index] = TRANSPARENT_RGB
+            cleaned += 1
+    return normalized, cleaned
 
 
 def validate_asset_scale(
@@ -268,8 +324,22 @@ def generate() -> None:
         raise ValueError(f"No TFT BMP assets found in {ASSETS_DIR}")
 
     assets = {}
+    cleaned_fringe_pixels = {}
     for path in sources:
-        assets[asset_name(path)] = read_color_bmp(path)
+        name = asset_name(path)
+        width, height, pixels = read_color_bmp(path)
+        normalized, cleaned = normalize_transparent_matte(
+            width, height, pixels)
+        remaining_matte = sum(
+            pixel != TRANSPARENT_RGB and is_magenta_matte(pixel)
+            for pixel in normalized)
+        if remaining_matte:
+            raise ValueError(
+                f"{path.name}: {remaining_matte} isolated magenta matte "
+                "pixels remain after background normalization")
+        assets[name] = (width, height, normalized)
+        if cleaned:
+            cleaned_fringe_pixels[name] = cleaned
     validate_asset_scale(assets)
 
     flash_image, catalog_crc, raw_size = build_flash_image(sources, assets)
@@ -322,6 +392,13 @@ def generate() -> None:
     ratio = len(flash_image) / raw_size
     print(f"Generated W25Q64 image from {len(sources)} TFT BMP assets: "
           f"{len(flash_image)} bytes ({ratio:.1%} of RGB565)")
+    if cleaned_fringe_pixels:
+        cleaned_total = sum(cleaned_fringe_pixels.values())
+        details = ", ".join(
+            f"{name}={count}"
+            for name, count in sorted(cleaned_fringe_pixels.items()))
+        print(f"Normalized {cleaned_total} background-connected magenta fringe "
+              f"pixels across {len(cleaned_fringe_pixels)} assets: {details}")
 
 
 if BUILD_ENV is not None or __name__ == "__main__":

@@ -23,14 +23,17 @@ sans framebuffer intermédiaire.
 - 33 BMP couleur 112×112 couvrent tous les états du dragon et de l'œuf ;
 - formats acceptés : BMP non compressé 8 ou 24 bits ;
 - le magenta pur `#FF00FF` représente la transparence ;
-- une frame d'animation correspond à un fichier explicitement nommé ;
+- le générateur normalise en transparence les seules franges magenta reliées
+  au fond et refuse toute nuance de matte résiduelle ;
+- une keyframe graphique correspond à un fichier explicitement nommé ; les
+  paires sont rendues en quatre phases sans créer de dessin intermédiaire ;
 - `dragon_medicine_01` reprend les yeux canoniques de `dragon_idle1` ;
 - `tools/generate_tft_assets.py` produit un catalogue léger et une image RGB565
   compressée RLE destinée à la W25Q64 ;
 - la génération refuse un dragon hors de la plage normalisée de 5 000 à 7 300
   pixels visibles ou un écart de surface supérieur à 12 % entre deux frames
   d'une même animation ; elle refuse aussi un décalage de ligne de sol supérieur
-  à 2 pixels dans une famille animée ;
+  à 3 pixels dans une famille animée ;
 - le header généré est reproductible et ne doit pas être modifié à la main.
 
 ```text
@@ -60,6 +63,8 @@ ST7789
 - sur HOME, ne redessiner que la jauge, la case de menu ou le sprite modifié ;
 - charger une frame depuis la W25Q64 dans le cache RGB565 unique, puis la
   transférer ligne par ligne vers le TFT ;
+- rendre les paires en quatre phases de 180 ms avec un rebond maximal de 1 px,
+  sans interpolation de couleur ni modification des keyframes validées ;
 - ne pas allouer de framebuffer couleur plein écran de 115 200 octets ;
 - le contrôleur TFT est désactivé avant le deep sleep et BLK GPIO10 est
   maintenu à LOW.
@@ -76,6 +81,15 @@ ST7789
 - le firmware normal lisant les sprites externes a été téléversé et validé ;
 - les 33 CRC passent, avec 35,5 ms au pire pour charger une frame à 8 MHz ;
 - le deep sleep, l'extinction BLK et le réveil GPIO3 sont validés.
+
+Version validée au 7 septembre 2026 : le générateur nettoie 1 325 pixels de
+frange magenta répartis sur 17 assets et l'application utilise les quatre phases
+à 180 ms. Les essais de keyframes intermédiaires ont tous été rejetés après
+inspection agrandie dès qu'ils altéraient les contours ou la structure. Les
+builds applicatif, programmateur et test de stockage passent. L'image W25Q64 est
+programmée et ses 33 CRC passent. Les contours, le rythme, les actions,
+l'absence de rognage et de scintillement ont été validés par l'utilisateur sur
+le TFT réel.
 
 ## Contraintes matérielles
 

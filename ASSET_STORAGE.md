@@ -5,9 +5,11 @@
 Les BMP de `assets/tft/` restent l'unique source graphique modifiable. Avant
 chaque compilation applicative ou du programmateur, `tools/generate_tft_assets.py` :
 
-1. valide les dimensions, l'échelle et la ligne de sol des animations ;
-2. convertit les couleurs en RGB565 little-endian ;
-3. conserve `#FF00FF` comme couleur réservée à la transparence ;
+1. normalise en transparence les franges magenta reliées au fond et refuse
+   toute nuance de matte résiduelle ;
+2. valide les dimensions, l'échelle et la ligne de sol des animations ;
+3. convertit les couleurs en RGB565 little-endian et conserve `#FF00FF` comme
+   couleur réservée à la transparence ;
 4. compresse chaque image avec le RLE décrit ci-dessous ;
 5. génère le petit catalogue C++ `include/generated_tft_assets.h` ;
 6. génère l'image de programmation dans
@@ -49,8 +51,8 @@ Le flux alterne des paquets de 1 à 128 pixels :
 
 Ce RLE est retenu à la place de zlib car il se décode sans allocation, avec un
 code court et une consommation déterministe. Sur les 33 sprites actuels,
-827 904 octets RGB565 deviennent une image complète de 214 128 octets, table
-comprise, soit 25,9 %. À complexité graphique comparable, les 8 Mio permettent
+827 904 octets RGB565 deviennent une image complète de 212 482 octets, table
+comprise, soit 25,7 %. À complexité graphique comparable, les 8 Mio permettent
 environ 1 290 images. Une compression plus complexe n'est donc pas nécessaire
 à ce stade.
 
@@ -86,13 +88,19 @@ CRC du catalogue empêche une application et une image d'assets dont la liste
 ou l'ordre diffèrent de fonctionner silencieusement ensemble ; le CRC de
 chaque image protège aussi son décodage.
 
-La fréquence d'animation reste indépendante du format de stockage. Le cache
-unique charge une nouvelle frame à la demande et réutilise la frame courante
-pour les déplacements. Si une animation future descend largement sous 100 ms
-par frame, mesurer d'abord le temps de chargement réel avant d'envisager un
-second cache ou une prélecture.
+La fréquence d'animation reste indépendante du format de stockage. Les paires
+actuelles sont rendues en quatre phases de 180 ms avec un rebond de 1 px, sans
+nouvelle keyframe ni interpolation graphique. Le cache unique charge une
+nouvelle keyframe à la demande et réutilise la keyframe courante pour les
+phases de rebond et les déplacements. Si une animation future descend largement
+sous 100 ms par phase, mesurer d'abord le temps de chargement réel avant
+d'envisager un second cache ou une prélecture.
 
 Mesure sur le prototype à 8 MHz le 6 septembre 2026 : les 33 CRC sont validés
-en 1,03 s, avec 35,5 ms pour la frame la plus lente. Une cadence de 300 ms par
-frame dispose donc d'une marge importante ; une animation à 100 ms reste
-plausible avant même toute optimisation du lecteur SPI.
+en 1,03 s, avec 35,5 ms pour la keyframe la plus lente. La cadence actuelle de
+180 ms par phase dispose donc d'une marge importante ; une animation à 100 ms
+reste plausible avant même toute optimisation du lecteur SPI.
+
+Nouvelle mesure après nettoyage des contours, le 7 septembre 2026 : image
+exacte de 212 482 octets et catalogue `84E4793D` confirmés par le programmateur,
+33/33 CRC validés en 1,069 s, avec 36,451 ms au pire.

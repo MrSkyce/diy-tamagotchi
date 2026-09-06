@@ -125,7 +125,7 @@ framebuffer secondaire, de conversion à l'exécution ni de rendu hybride.
 Compilation applicative avec les pixels des 33 sprites retirés de la flash
 interne et un cache RAM RGB565 de 25 088 octets :
 
-- flash : 26,8 %, soit 350 798 octets sur 1 310 720 ;
+- flash : 26,8 %, soit 351 116 octets sur 1 310 720 ;
 - RAM statique : 12,5 %, soit 40 840 octets sur 327 680.
 
 Il n'y a pas de framebuffer 240×240 permanent, qui demanderait 115 200 octets.
@@ -184,8 +184,18 @@ RTC reste à tester après ajout d'une pile CR1220.
 - cache unique de 112×112 pixels en RAM, indépendant du nombre de frames ;
 - génération automatique avant chaque build ;
 - contrôle automatique de l'échelle : 5 000 à 7 300 pixels visibles par
-  dragon, ratio maximal de 1,12 et écart de ligne de sol maximal de 2 pixels
+  dragon, ratio maximal de 1,12 et écart de ligne de sol maximal de 3 pixels
   dans chaque famille animée.
+
+Version graphique validée au 7 septembre 2026 : le générateur convertit en
+transparence 1 325 pixels de frange magenta reliés au fond sur 17 assets et
+refuse toute nuance de matte résiduelle. Les paires de keyframes sont rendues en
+quatre phases de 180 ms avec un rebond de 1 px, sans redessiner le dragon. Les
+dix environnements PlatformIO compilent. L'image de 212 482 octets est
+programmée, son catalogue `84E4793D` est confirmé et ses 33 CRC passent en
+1,069 s, avec 36,451 ms au pire.
+Les contours, le nouveau rythme, toutes les actions, l'absence de rognage et de
+scintillement sont validés par l'utilisateur sur le TFT réel.
 
 Le lot couvre idle, clignement, émotions, fatigue, marche dans les deux sens,
 FOOD, PLAY, MEDICINE, CLEAN, sommeil accepté/refusé/profond, rotation de l'œuf,

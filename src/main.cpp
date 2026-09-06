@@ -206,7 +206,7 @@ constexpr unsigned long FATIGUE_INTERVAL = 15000;
 unsigned long lastAnimTick = 0;
 unsigned long lastMoveTick = 0;
 unsigned long lastBlinkTick = 0;
-constexpr unsigned long ANIM_INTERVAL = 450;
+constexpr unsigned long ANIM_FRAME_INTERVAL = 180;
 constexpr unsigned long CREATURE_MOVE_INTERVAL = 120;
 constexpr unsigned long BLINK_INTERVAL = 3500;
 constexpr unsigned long BLINK_DURATION = 140;
@@ -216,7 +216,7 @@ int creatureX = 44;
 bool creatureMoveRight = true;
 bool creatureBlink = false;
 unsigned long blinkStart = 0;
-bool idleFrame = false;
+uint8_t animationPhase = 0;
 bool medicineHelped = false;
 bool sleepAccepted = false;
 bool hatchedThisAction = false;
@@ -373,29 +373,48 @@ int tftLifeStageProgress() {
 
 struct TftDragonFrame {
   TftAssetId asset;
+  int8_t yOffset;
+
+  TftDragonFrame(TftAssetId assetId, int8_t verticalOffset = 0)
+      : asset(assetId), yOffset(verticalOffset) {}
 };
+
+constexpr int8_t tftAnimationBob(uint8_t phase) {
+  return phase == 1 || phase == 2 ? -1 : 0;
+}
+
+TftDragonFrame tftAnimatedPair(TftAssetId first, TftAssetId second,
+                               uint8_t phase) {
+  // Four rendered phases preserve both validated keyframes exactly while a
+  // one-pixel lift adds an intermediate motion without redrawing the dragon:
+  // A, A lifted, B lifted, B.
+  phase %= 4;
+  return {phase < 2 ? first : second, tftAnimationBob(phase)};
+}
 
 TftDragonFrame currentTftHomeDragonFrame() {
   if (pet.health < 30) return {TftAssetId::DRAGON_SICK};
   if (pet.hunger < 25) return {TftAssetId::DRAGON_HUNGRY};
   if (pet.happiness < 25) return {TftAssetId::DRAGON_SAD};
   if (pet.fatigue >= 50) {
-    return idleFrame ? TftDragonFrame{TftAssetId::DRAGON_TIRED_02}
-                     : TftDragonFrame{TftAssetId::DRAGON_TIRED_01};
+    return tftAnimatedPair(TftAssetId::DRAGON_TIRED_01,
+                           TftAssetId::DRAGON_TIRED_02, animationPhase);
   }
   if (creatureBlink) return {TftAssetId::DRAGON_BLINK};
   if (pet.happiness >= 95) return {TftAssetId::DRAGON_HAPPY};
   if (creatureX <= CREATURE_MIN_X + 2 ||
       creatureX >= CREATURE_MAX_X - 2) {
-    return idleFrame ? TftDragonFrame{TftAssetId::DRAGON_IDLE2}
-                     : TftDragonFrame{TftAssetId::DRAGON_IDLE1};
+    return tftAnimatedPair(TftAssetId::DRAGON_IDLE1,
+                           TftAssetId::DRAGON_IDLE2, animationPhase);
   }
   if (creatureMoveRight) {
-    return idleFrame ? TftDragonFrame{TftAssetId::DRAGON_WALK_RIGHT_02}
-                     : TftDragonFrame{TftAssetId::DRAGON_WALK_RIGHT_01};
+    return tftAnimatedPair(TftAssetId::DRAGON_WALK_RIGHT_01,
+                           TftAssetId::DRAGON_WALK_RIGHT_02,
+                           animationPhase);
   }
-  return idleFrame ? TftDragonFrame{TftAssetId::DRAGON_WALK_LEFT_02}
-                   : TftDragonFrame{TftAssetId::DRAGON_WALK_LEFT_01};
+  return tftAnimatedPair(TftAssetId::DRAGON_WALK_LEFT_01,
+                         TftAssetId::DRAGON_WALK_LEFT_02,
+                         animationPhase);
 }
 
 int16_t tftCreatureX() {
@@ -434,6 +453,10 @@ uint16_t tftHomeBackgroundAt(int16_t x, int16_t y) {
 void drawTftHomeDragon(const TftDragonFrame& frame, int16_t dragonX,
                        int16_t previousX = -1) {
   constexpr int16_t DRAGON_Y = 63;
+  // The extra row covers both y=-1 and y=0 phases and clears the previous
+  // position, including sprites whose opaque pixels touch a canvas boundary.
+  constexpr int16_t DRAW_TOP = DRAGON_Y - 1;
+  constexpr int16_t DRAW_HEIGHT = TFT_ASSET_HEIGHT + 1;
   if (!tftAssets.load(frame.asset)) return;
   const uint16_t* pixels = tftAssets.pixels();
   const int16_t left = previousX < 0 ? dragonX : min(dragonX, previousX);
@@ -444,13 +467,16 @@ void drawTftHomeDragon(const TftDragonFrame& frame, int16_t dragonX,
   uint16_t line[TFT_WIDTH];
 
   spiTft.startWrite();
-  spiTft.setAddrWindow(left, DRAGON_Y, regionWidth, TFT_ASSET_HEIGHT);
-  for (int16_t y = 0; y < TFT_ASSET_HEIGHT; ++y) {
-    const int16_t screenY = DRAGON_Y + y;
+  spiTft.setAddrWindow(left, DRAW_TOP, regionWidth, DRAW_HEIGHT);
+  for (int16_t screenY = DRAW_TOP;
+       screenY < DRAW_TOP + DRAW_HEIGHT; ++screenY) {
+    const int16_t spriteY = screenY - DRAGON_Y - frame.yOffset;
     for (int16_t screenX = left; screenX < right; ++screenX) {
       const int16_t spriteX = screenX - dragonX;
-      const uint16_t pixel = spriteX >= 0 && spriteX < TFT_ASSET_WIDTH
-          ? pixels[y * TFT_ASSET_WIDTH + spriteX]
+      const uint16_t pixel =
+          spriteX >= 0 && spriteX < TFT_ASSET_WIDTH &&
+                  spriteY >= 0 && spriteY < TFT_ASSET_HEIGHT
+          ? pixels[spriteY * TFT_ASSET_WIDTH + spriteX]
           : TFT_ASSET_TRANSPARENT;
       line[screenX - left] = pixel != TFT_ASSET_TRANSPARENT
           ? pixel : tftHomeBackgroundAt(screenX, screenY);
@@ -463,15 +489,24 @@ void drawTftHomeDragon(const TftDragonFrame& frame, int16_t dragonX,
 void drawTftDragonOnSolid(const TftDragonFrame& frame, int16_t dragonY,
                           uint16_t background) {
   constexpr int16_t DRAGON_X = (TFT_WIDTH - TFT_ASSET_WIDTH) / 2;
+  // Keep the output window fixed across both animation offsets so a lifted
+  // frame cannot leave stale pixels or clip the top of a 112 px asset.
+  constexpr int16_t EXTRA_TOP = 1;
+  constexpr int16_t DRAW_HEIGHT = TFT_ASSET_HEIGHT + EXTRA_TOP;
   if (!tftAssets.load(frame.asset)) return;
   const uint16_t* pixels = tftAssets.pixels();
   uint16_t line[TFT_ASSET_WIDTH];
 
   spiTft.startWrite();
-  spiTft.setAddrWindow(DRAGON_X, dragonY, TFT_ASSET_WIDTH, TFT_ASSET_HEIGHT);
-  for (int16_t y = 0; y < TFT_ASSET_HEIGHT; ++y) {
+  spiTft.setAddrWindow(DRAGON_X, dragonY - EXTRA_TOP,
+                       TFT_ASSET_WIDTH, DRAW_HEIGHT);
+  for (int16_t outputY = 0; outputY < DRAW_HEIGHT; ++outputY) {
+    const int16_t screenY = dragonY - EXTRA_TOP + outputY;
+    const int16_t spriteY = screenY - dragonY - frame.yOffset;
     for (int16_t x = 0; x < TFT_ASSET_WIDTH; ++x) {
-      const uint16_t pixel = pixels[y * TFT_ASSET_WIDTH + x];
+      const uint16_t pixel = spriteY >= 0 && spriteY < TFT_ASSET_HEIGHT
+          ? pixels[spriteY * TFT_ASSET_WIDTH + x]
+          : TFT_ASSET_TRANSPARENT;
       line[x] = pixel != TFT_ASSET_TRANSPARENT ? pixel : background;
     }
     spiTft.writePixels(line, TFT_ASSET_WIDTH);
@@ -569,33 +604,28 @@ void drawTftHomeNative() {
 }
 
 TftDragonFrame currentTftActionFrame() {
-  const bool secondFrame = ((millis() - screenTimer) / 300) % 2 != 0;
+  const uint8_t phase =
+      ((millis() - screenTimer) / ANIM_FRAME_INTERVAL) % 4;
   switch (currentScreen) {
     case SCREEN_FOOD:
-      return secondFrame
-                 ? TftDragonFrame{TftAssetId::DRAGON_FOOD_02}
-                 : TftDragonFrame{TftAssetId::DRAGON_FOOD_01};
+      return tftAnimatedPair(TftAssetId::DRAGON_FOOD_01,
+                             TftAssetId::DRAGON_FOOD_02, phase);
     case SCREEN_PLAY:
-      return secondFrame
-                 ? TftDragonFrame{TftAssetId::DRAGON_PLAY_02}
-                 : TftDragonFrame{TftAssetId::DRAGON_PLAY_01};
+      return tftAnimatedPair(TftAssetId::DRAGON_PLAY_01,
+                             TftAssetId::DRAGON_PLAY_02, phase);
     case SCREEN_MEDICINE:
-      return secondFrame
-                 ? TftDragonFrame{TftAssetId::DRAGON_MEDICINE_02}
-                 : TftDragonFrame{TftAssetId::DRAGON_MEDICINE_01};
+      return tftAnimatedPair(TftAssetId::DRAGON_MEDICINE_01,
+                             TftAssetId::DRAGON_MEDICINE_02, phase);
     case SCREEN_CLEAN:
-      return secondFrame
-                 ? TftDragonFrame{TftAssetId::DRAGON_CLEAN_02}
-                 : TftDragonFrame{TftAssetId::DRAGON_CLEAN_01};
+      return tftAnimatedPair(TftAssetId::DRAGON_CLEAN_01,
+                             TftAssetId::DRAGON_CLEAN_02, phase);
     case SCREEN_REST:
       if (sleepAccepted) {
-        return secondFrame
-                   ? TftDragonFrame{TftAssetId::DRAGON_SLEEP_02}
-                   : TftDragonFrame{TftAssetId::DRAGON_SLEEP_01};
+        return tftAnimatedPair(TftAssetId::DRAGON_SLEEP_01,
+                               TftAssetId::DRAGON_SLEEP_02, phase);
       }
-      return secondFrame
-                 ? TftDragonFrame{TftAssetId::DRAGON_SLEEP_REFUSE_02}
-                 : TftDragonFrame{TftAssetId::DRAGON_SLEEP_REFUSE_01};
+      return tftAnimatedPair(TftAssetId::DRAGON_SLEEP_REFUSE_01,
+                             TftAssetId::DRAGON_SLEEP_REFUSE_02, phase);
     default:
       return {TftAssetId::DRAGON_IDLE1};
   }
@@ -832,12 +862,14 @@ void drawTftUi() {
   static int lastFatigue = -1;
   static int lastWarmth = -1;
   static int lastTftDragonX = -1;
+  static int8_t lastTftDragonYOffset = 0;
   static TftAssetId lastTftAsset = TftAssetId::INVALID;
 
   if (bootPhase != BOOT_DONE) {
     drawTftBootNative();
     lastTftScreen = -1;
     lastTftDragonX = -1;
+    lastTftDragonYOffset = 0;
     lastTftBootPhase = static_cast<int>(bootPhase);
     lastTftAsset = TftAssetId::INVALID;
     return;
@@ -848,6 +880,7 @@ void drawTftUi() {
     drawTftSleepNoticeNative();
     lastTftScreen = -1;
     lastTftAsset = TftAssetId::DRAGON_SLEEPING;
+    lastTftDragonYOffset = 0;
     return;
   }
 
@@ -866,6 +899,7 @@ void drawTftUi() {
     lastTftScreen = static_cast<int>(currentScreen);
     lastTftBootPhase = static_cast<int>(bootPhase);
     lastTftAsset = eggFrame.asset;
+    lastTftDragonYOffset = 0;
     lastWarmth = pet.warmth;
     lastTftDragonX = -1;
     return;
@@ -893,6 +927,7 @@ void drawTftUi() {
     lastSelectedMenu = static_cast<int>(selectedMenu);
     lastWarmth = pet.warmth;
     lastTftAsset = eggFrame.asset;
+    lastTftDragonYOffset = 0;
     lastTftDragonX = -1;
     return;
   }
@@ -907,6 +942,7 @@ void drawTftUi() {
     lastTftScreen = static_cast<int>(currentScreen);
     lastTftBootPhase = static_cast<int>(bootPhase);
     lastTftAsset = TftAssetId::INVALID;
+    lastTftDragonYOffset = 0;
     lastTftDragonX = -1;
     return;
   }
@@ -926,11 +962,13 @@ void drawTftUi() {
         lastTftScreen != static_cast<int>(currentScreen) ||
         lastTftBootPhase != static_cast<int>(bootPhase);
     if (fullRedraw) drawTftActionNative(dragonFrame);
-    else if (lastTftAsset != dragonFrame.asset)
+    else if (lastTftAsset != dragonFrame.asset ||
+             lastTftDragonYOffset != dragonFrame.yOffset)
       drawTftDragonOnSolid(dragonFrame, 43, tftActionBackground());
     lastTftScreen = static_cast<int>(currentScreen);
     lastTftBootPhase = static_cast<int>(bootPhase);
     lastTftAsset = dragonFrame.asset;
+    lastTftDragonYOffset = dragonFrame.yOffset;
     lastTftDragonX = -1;
     return;
   }
@@ -968,6 +1006,7 @@ void drawTftUi() {
         drawTftHomeMenuItem(selectedMenu, true);
       }
       if (lastTftAsset != dragonFrame.asset ||
+          lastTftDragonYOffset != dragonFrame.yOffset ||
           lastTftDragonX != dragonX) {
         drawTftHomeDragon(dragonFrame, dragonX, lastTftDragonX);
       }
@@ -982,6 +1021,7 @@ void drawTftUi() {
     lastFatigue = pet.fatigue;
     lastLifeStage = static_cast<int>(pet.lifeStage);
     lastTftAsset = dragonFrame.asset;
+    lastTftDragonYOffset = dragonFrame.yOffset;
     lastTftDragonX = dragonX;
     return;
   }
@@ -1431,9 +1471,9 @@ void updateSimulation() {
 void updateCreatureAnimation() {
   unsigned long now = millis();
   bool redraw = false;
-  if (now - lastAnimTick >= ANIM_INTERVAL) {
+  if (now - lastAnimTick >= ANIM_FRAME_INTERVAL) {
     lastAnimTick = now;
-    idleFrame = !idleFrame;
+    animationPhase = (animationPhase + 1) % 4;
     redraw = true;
   }
   if (now - lastMoveTick >= CREATURE_MOVE_INTERVAL) {

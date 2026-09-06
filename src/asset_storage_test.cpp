@@ -107,7 +107,9 @@ void setup() {
                 TFT_ASSET_COUNT, TFT_ASSET_COUNT,
                 static_cast<unsigned long>(totalUs),
                 static_cast<unsigned long>(maximumUs));
-  drawCentered("33 CRC OK", 218, 2, ST77XX_GREEN);
+  char crcLabel[24];
+  snprintf(crcLabel, sizeof(crcLabel), "%u CRC OK", TFT_ASSET_COUNT);
+  drawCentered(crcLabel, 218, 2, ST77XX_GREEN);
   drawAsset(currentAsset);
   lastFrameAt = millis();
 }
@@ -122,4 +124,3 @@ void loop() {
                   assets.error());
   }
 }
-

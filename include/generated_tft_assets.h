@@ -49,5 +49,5 @@ constexpr uint16_t TFT_ASSET_HEIGHT = 112;
 constexpr size_t TFT_ASSET_PIXEL_COUNT = 12544;
 constexpr uint16_t TFT_ASSET_TRANSPARENT = 0xF81F;
 constexpr uint32_t TFT_ASSET_CATALOG_CRC32 = 0x84E4793D;
-constexpr uint32_t TFT_ASSET_FLASH_IMAGE_SIZE = 214128;
+constexpr uint32_t TFT_ASSET_FLASH_IMAGE_SIZE = 212482;
 constexpr uint32_t TFT_ASSET_RAW_PIXEL_SIZE = 827904;
