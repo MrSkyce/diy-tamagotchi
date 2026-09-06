@@ -187,7 +187,8 @@ Ce câblage reprend le buzzer déjà validé sur le prototype.
 - W25Q64 détectée en lecture seule avec l'identifiant JEDEC `EF 40 17` ;
 - PCF8523 détecté à `0x68`, oscillateur arrêté en l'absence de pile ;
 - BLK maintenu à LOW pendant le deep sleep, extinction réelle validée ;
-- aucun système de fichiers ni écriture/effacement de la W25Q64 à ce stade.
+- aucun système de fichiers ; les secteurs initiaux contiennent désormais
+  l'image RLE des sprites, programmée et vérifiée octet par octet.
 
 ## Critères de validation
 

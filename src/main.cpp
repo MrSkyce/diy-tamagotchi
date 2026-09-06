@@ -8,10 +8,15 @@
 #include <esp_system.h>
 
 #include "config.h"
+#include "external_flash.h"
 #include "generated_tft_assets.h"
 #include "persistence.h"
+#include "tft_asset_store.h"
 
 Adafruit_ST7789 spiTft(&SPI, TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
+W25Q64Flash externalFlash;
+TftAssetStore tftAssets;
+bool tftAssetsReady = false;
 
 struct ExternalHardwareStatus {
   bool flashDetected = false;
@@ -34,16 +39,10 @@ void probeExternalHardware() {
     externalHardware.rtcClockRunning = (Wire.read() & 0x80) == 0;
   }
 
-  digitalWrite(TFT_CS_PIN, HIGH);
-  SPI.beginTransaction(
-      SPISettings(FLASH_SPI_FREQUENCY, MSBFIRST, SPI_MODE0));
-  digitalWrite(FLASH_CS_PIN, LOW);
-  SPI.transfer(0x9F); // Identifiant JEDEC, lecture seule.
-  externalHardware.flashManufacturer = SPI.transfer(0x00);
-  externalHardware.flashMemoryType = SPI.transfer(0x00);
-  externalHardware.flashCapacity = SPI.transfer(0x00);
-  digitalWrite(FLASH_CS_PIN, HIGH);
-  SPI.endTransaction();
+  const W25QJedecId jedec = externalFlash.readJedecId();
+  externalHardware.flashManufacturer = jedec.manufacturer;
+  externalHardware.flashMemoryType = jedec.memoryType;
+  externalHardware.flashCapacity = jedec.capacity;
 
   const bool flashAllZero = externalHardware.flashManufacturer == 0x00 &&
                             externalHardware.flashMemoryType == 0x00 &&
@@ -66,6 +65,24 @@ void probeExternalHardware() {
 void drawTftUi();
 
 void presentDisplay() {
+  if (!tftAssetsReady) {
+    static bool errorDrawn = false;
+    if (!errorDrawn) {
+      spiTft.fillScreen(ST77XX_BLACK);
+      spiTft.setTextColor(ST77XX_RED);
+      spiTft.setTextSize(2);
+      spiTft.setCursor(20, 54);
+      spiTft.print("ASSET ERROR");
+      spiTft.setTextColor(ST77XX_WHITE);
+      spiTft.setTextSize(1);
+      spiTft.setCursor(20, 92);
+      spiTft.print(tftAssets.error());
+      spiTft.setCursor(20, 116);
+      spiTft.print("Run asset-flash-programmer");
+      errorDrawn = true;
+    }
+    return;
+  }
   drawTftUi();
 }
 
@@ -355,44 +372,35 @@ int tftLifeStageProgress() {
 }
 
 struct TftDragonFrame {
-  const uint16_t* pixels;
-  const uint8_t* mask;
+  TftAssetId asset;
 };
 
 TftDragonFrame currentTftHomeDragonFrame() {
-  if (pet.health < 30) return {dragon_sick_pixels, dragon_sick_mask};
-  if (pet.hunger < 25) return {dragon_hungry_pixels, dragon_hungry_mask};
-  if (pet.happiness < 25) return {dragon_sad_pixels, dragon_sad_mask};
+  if (pet.health < 30) return {TftAssetId::DRAGON_SICK};
+  if (pet.hunger < 25) return {TftAssetId::DRAGON_HUNGRY};
+  if (pet.happiness < 25) return {TftAssetId::DRAGON_SAD};
   if (pet.fatigue >= 50) {
-    return idleFrame ? TftDragonFrame{dragon_tired_02_pixels,
-                                      dragon_tired_02_mask}
-                     : TftDragonFrame{dragon_tired_01_pixels,
-                                      dragon_tired_01_mask};
+    return idleFrame ? TftDragonFrame{TftAssetId::DRAGON_TIRED_02}
+                     : TftDragonFrame{TftAssetId::DRAGON_TIRED_01};
   }
-  if (creatureBlink) return {dragon_blink_pixels, dragon_blink_mask};
-  if (pet.happiness >= 95) return {dragon_happy_pixels, dragon_happy_mask};
+  if (creatureBlink) return {TftAssetId::DRAGON_BLINK};
+  if (pet.happiness >= 95) return {TftAssetId::DRAGON_HAPPY};
   if (creatureX <= CREATURE_MIN_X + 2 ||
       creatureX >= CREATURE_MAX_X - 2) {
-    return idleFrame ? TftDragonFrame{dragon_idle2_pixels, dragon_idle2_mask}
-                     : TftDragonFrame{dragon_idle1_pixels, dragon_idle1_mask};
+    return idleFrame ? TftDragonFrame{TftAssetId::DRAGON_IDLE2}
+                     : TftDragonFrame{TftAssetId::DRAGON_IDLE1};
   }
   if (creatureMoveRight) {
-    return idleFrame
-               ? TftDragonFrame{dragon_walk_right_02_pixels,
-                                dragon_walk_right_02_mask}
-               : TftDragonFrame{dragon_walk_right_01_pixels,
-                                dragon_walk_right_01_mask};
+    return idleFrame ? TftDragonFrame{TftAssetId::DRAGON_WALK_RIGHT_02}
+                     : TftDragonFrame{TftAssetId::DRAGON_WALK_RIGHT_01};
   }
-  return idleFrame
-             ? TftDragonFrame{dragon_walk_left_02_pixels,
-                              dragon_walk_left_02_mask}
-             : TftDragonFrame{dragon_walk_left_01_pixels,
-                              dragon_walk_left_01_mask};
+  return idleFrame ? TftDragonFrame{TftAssetId::DRAGON_WALK_LEFT_02}
+                   : TftDragonFrame{TftAssetId::DRAGON_WALK_LEFT_01};
 }
 
 int16_t tftCreatureX() {
   return map(creatureX, CREATURE_MIN_X, CREATURE_MAX_X, 4,
-             TFT_WIDTH - dragon_idle1_width - 4);
+             TFT_WIDTH - TFT_ASSET_WIDTH - 4);
 }
 
 bool tftPointInCircle(int16_t x, int16_t y, int16_t centerX,
@@ -426,29 +434,26 @@ uint16_t tftHomeBackgroundAt(int16_t x, int16_t y) {
 void drawTftHomeDragon(const TftDragonFrame& frame, int16_t dragonX,
                        int16_t previousX = -1) {
   constexpr int16_t DRAGON_Y = 63;
-  constexpr int16_t MASK_ROW_BYTES = (dragon_idle1_width + 7) / 8;
+  if (!tftAssets.load(frame.asset)) return;
+  const uint16_t* pixels = tftAssets.pixels();
   const int16_t left = previousX < 0 ? dragonX : min(dragonX, previousX);
   const int16_t right = previousX < 0
-      ? dragonX + dragon_idle1_width
-      : max(dragonX, previousX) + dragon_idle1_width;
+      ? dragonX + TFT_ASSET_WIDTH
+      : max(dragonX, previousX) + TFT_ASSET_WIDTH;
   const int16_t regionWidth = right - left;
   uint16_t line[TFT_WIDTH];
 
   spiTft.startWrite();
-  spiTft.setAddrWindow(left, DRAGON_Y, regionWidth, dragon_idle1_height);
-  for (int16_t y = 0; y < dragon_idle1_height; ++y) {
+  spiTft.setAddrWindow(left, DRAGON_Y, regionWidth, TFT_ASSET_HEIGHT);
+  for (int16_t y = 0; y < TFT_ASSET_HEIGHT; ++y) {
     const int16_t screenY = DRAGON_Y + y;
     for (int16_t screenX = left; screenX < right; ++screenX) {
       const int16_t spriteX = screenX - dragonX;
-      bool opaque = false;
-      if (spriteX >= 0 && spriteX < dragon_idle1_width) {
-        const uint8_t maskByte = pgm_read_byte(
-            &frame.mask[y * MASK_ROW_BYTES + spriteX / 8]);
-        opaque = maskByte & (0x80 >> (spriteX % 8));
-      }
-      line[screenX - left] = opaque
-          ? pgm_read_word(&frame.pixels[y * dragon_idle1_width + spriteX])
-          : tftHomeBackgroundAt(screenX, screenY);
+      const uint16_t pixel = spriteX >= 0 && spriteX < TFT_ASSET_WIDTH
+          ? pixels[y * TFT_ASSET_WIDTH + spriteX]
+          : TFT_ASSET_TRANSPARENT;
+      line[screenX - left] = pixel != TFT_ASSET_TRANSPARENT
+          ? pixel : tftHomeBackgroundAt(screenX, screenY);
     }
     spiTft.writePixels(line, regionWidth);
   }
@@ -457,44 +462,37 @@ void drawTftHomeDragon(const TftDragonFrame& frame, int16_t dragonX,
 
 void drawTftDragonOnSolid(const TftDragonFrame& frame, int16_t dragonY,
                           uint16_t background) {
-  constexpr int16_t DRAGON_X = (TFT_WIDTH - dragon_idle1_width) / 2;
-  constexpr int16_t MASK_ROW_BYTES = (dragon_idle1_width + 7) / 8;
-  uint16_t line[dragon_idle1_width];
+  constexpr int16_t DRAGON_X = (TFT_WIDTH - TFT_ASSET_WIDTH) / 2;
+  if (!tftAssets.load(frame.asset)) return;
+  const uint16_t* pixels = tftAssets.pixels();
+  uint16_t line[TFT_ASSET_WIDTH];
 
   spiTft.startWrite();
-  spiTft.setAddrWindow(DRAGON_X, dragonY, dragon_idle1_width,
-                       dragon_idle1_height);
-  for (int16_t y = 0; y < dragon_idle1_height; ++y) {
-    for (int16_t x = 0; x < dragon_idle1_width; ++x) {
-      const uint8_t maskByte = pgm_read_byte(
-          &frame.mask[y * MASK_ROW_BYTES + x / 8]);
-      line[x] = maskByte & (0x80 >> (x % 8))
-                    ? pgm_read_word(&frame.pixels[y * dragon_idle1_width + x])
-                    : background;
+  spiTft.setAddrWindow(DRAGON_X, dragonY, TFT_ASSET_WIDTH, TFT_ASSET_HEIGHT);
+  for (int16_t y = 0; y < TFT_ASSET_HEIGHT; ++y) {
+    for (int16_t x = 0; x < TFT_ASSET_WIDTH; ++x) {
+      const uint16_t pixel = pixels[y * TFT_ASSET_WIDTH + x];
+      line[x] = pixel != TFT_ASSET_TRANSPARENT ? pixel : background;
     }
-    spiTft.writePixels(line, dragon_idle1_width);
+    spiTft.writePixels(line, TFT_ASSET_WIDTH);
   }
   spiTft.endWrite();
 }
 
 void drawTftSpriteOnSolid(const TftDragonFrame& frame, int16_t spriteX,
                           int16_t spriteY, uint16_t background) {
-  constexpr int16_t SPRITE_WIDTH = 112;
-  constexpr int16_t SPRITE_HEIGHT = 112;
-  constexpr int16_t MASK_ROW_BYTES = (SPRITE_WIDTH + 7) / 8;
-  uint16_t line[SPRITE_WIDTH];
+  if (!tftAssets.load(frame.asset)) return;
+  const uint16_t* pixels = tftAssets.pixels();
+  uint16_t line[TFT_ASSET_WIDTH];
 
   spiTft.startWrite();
-  spiTft.setAddrWindow(spriteX, spriteY, SPRITE_WIDTH, SPRITE_HEIGHT);
-  for (int16_t y = 0; y < SPRITE_HEIGHT; ++y) {
-    for (int16_t x = 0; x < SPRITE_WIDTH; ++x) {
-      const uint8_t maskByte = pgm_read_byte(
-          &frame.mask[y * MASK_ROW_BYTES + x / 8]);
-      line[x] = maskByte & (0x80 >> (x % 8))
-                    ? pgm_read_word(&frame.pixels[y * SPRITE_WIDTH + x])
-                    : background;
+  spiTft.setAddrWindow(spriteX, spriteY, TFT_ASSET_WIDTH, TFT_ASSET_HEIGHT);
+  for (int16_t y = 0; y < TFT_ASSET_HEIGHT; ++y) {
+    for (int16_t x = 0; x < TFT_ASSET_WIDTH; ++x) {
+      const uint16_t pixel = pixels[y * TFT_ASSET_WIDTH + x];
+      line[x] = pixel != TFT_ASSET_TRANSPARENT ? pixel : background;
     }
-    spiTft.writePixels(line, SPRITE_WIDTH);
+    spiTft.writePixels(line, TFT_ASSET_WIDTH);
   }
   spiTft.endWrite();
 }
@@ -502,30 +500,27 @@ void drawTftSpriteOnSolid(const TftDragonFrame& frame, int16_t spriteX,
 void drawTftMovingSpriteOnSolid(const TftDragonFrame& frame,
                                 int16_t spriteX, int16_t previousX,
                                 int16_t spriteY, uint16_t background) {
-  constexpr int16_t SPRITE_WIDTH = 112;
-  constexpr int16_t SPRITE_HEIGHT = 112;
-  constexpr int16_t MASK_ROW_BYTES = (SPRITE_WIDTH + 7) / 8;
+  if (!tftAssets.load(frame.asset)) return;
+  const uint16_t* pixels = tftAssets.pixels();
   const int16_t left = previousX < 0 ? spriteX : min(spriteX, previousX);
   const int16_t right = previousX < 0
-      ? spriteX + SPRITE_WIDTH
-      : max(spriteX, previousX) + SPRITE_WIDTH;
+      ? spriteX + TFT_ASSET_WIDTH
+      : max(spriteX, previousX) + TFT_ASSET_WIDTH;
   const int16_t regionWidth = right - left;
   uint16_t line[TFT_WIDTH];
 
   spiTft.startWrite();
-  spiTft.setAddrWindow(left, spriteY, regionWidth, SPRITE_HEIGHT);
-  for (int16_t y = 0; y < SPRITE_HEIGHT; ++y) {
+  spiTft.setAddrWindow(left, spriteY, regionWidth, TFT_ASSET_HEIGHT);
+  for (int16_t y = 0; y < TFT_ASSET_HEIGHT; ++y) {
     for (int16_t screenX = left; screenX < right; ++screenX) {
       const int16_t frameX = screenX - spriteX;
       bool opaque = false;
-      if (frameX >= 0 && frameX < SPRITE_WIDTH) {
-        const uint8_t maskByte = pgm_read_byte(
-            &frame.mask[y * MASK_ROW_BYTES + frameX / 8]);
-        opaque = maskByte & (0x80 >> (frameX % 8));
+      uint16_t pixel = TFT_ASSET_TRANSPARENT;
+      if (frameX >= 0 && frameX < TFT_ASSET_WIDTH) {
+        pixel = pixels[y * TFT_ASSET_WIDTH + frameX];
       }
-      line[screenX - left] = opaque
-          ? pgm_read_word(&frame.pixels[y * SPRITE_WIDTH + frameX])
-          : background;
+      opaque = pixel != TFT_ASSET_TRANSPARENT;
+      line[screenX - left] = opaque ? pixel : background;
     }
     spiTft.writePixels(line, regionWidth);
   }
@@ -578,37 +573,31 @@ TftDragonFrame currentTftActionFrame() {
   switch (currentScreen) {
     case SCREEN_FOOD:
       return secondFrame
-                 ? TftDragonFrame{dragon_food_02_pixels, dragon_food_02_mask}
-                 : TftDragonFrame{dragon_food_01_pixels, dragon_food_01_mask};
+                 ? TftDragonFrame{TftAssetId::DRAGON_FOOD_02}
+                 : TftDragonFrame{TftAssetId::DRAGON_FOOD_01};
     case SCREEN_PLAY:
       return secondFrame
-                 ? TftDragonFrame{dragon_play_02_pixels, dragon_play_02_mask}
-                 : TftDragonFrame{dragon_play_01_pixels, dragon_play_01_mask};
+                 ? TftDragonFrame{TftAssetId::DRAGON_PLAY_02}
+                 : TftDragonFrame{TftAssetId::DRAGON_PLAY_01};
     case SCREEN_MEDICINE:
       return secondFrame
-                 ? TftDragonFrame{dragon_medicine_02_pixels,
-                                  dragon_medicine_02_mask}
-                 : TftDragonFrame{dragon_medicine_01_pixels,
-                                  dragon_medicine_01_mask};
+                 ? TftDragonFrame{TftAssetId::DRAGON_MEDICINE_02}
+                 : TftDragonFrame{TftAssetId::DRAGON_MEDICINE_01};
     case SCREEN_CLEAN:
       return secondFrame
-                 ? TftDragonFrame{dragon_clean_02_pixels, dragon_clean_02_mask}
-                 : TftDragonFrame{dragon_clean_01_pixels, dragon_clean_01_mask};
+                 ? TftDragonFrame{TftAssetId::DRAGON_CLEAN_02}
+                 : TftDragonFrame{TftAssetId::DRAGON_CLEAN_01};
     case SCREEN_REST:
       if (sleepAccepted) {
         return secondFrame
-                   ? TftDragonFrame{dragon_sleep_02_pixels,
-                                    dragon_sleep_02_mask}
-                   : TftDragonFrame{dragon_sleep_01_pixels,
-                                    dragon_sleep_01_mask};
+                   ? TftDragonFrame{TftAssetId::DRAGON_SLEEP_02}
+                   : TftDragonFrame{TftAssetId::DRAGON_SLEEP_01};
       }
       return secondFrame
-                 ? TftDragonFrame{dragon_sleep_refuse_02_pixels,
-                                  dragon_sleep_refuse_02_mask}
-                 : TftDragonFrame{dragon_sleep_refuse_01_pixels,
-                                  dragon_sleep_refuse_01_mask};
+                 ? TftDragonFrame{TftAssetId::DRAGON_SLEEP_REFUSE_02}
+                 : TftDragonFrame{TftAssetId::DRAGON_SLEEP_REFUSE_01};
     default:
-      return {dragon_idle1_pixels, dragon_idle1_mask};
+      return {TftAssetId::DRAGON_IDLE1};
   }
 }
 
@@ -707,26 +696,26 @@ void drawTftSleepNoticeNative() {
   if (pet.lifeStage == STAGE_EGG) {
     drawTftSpriteOnSolid(tftRollingEggFrame(0), 64, 58, NIGHT_BACKGROUND);
   } else {
-    drawTftDragonOnSolid(
-        {dragon_sleeping_pixels, dragon_sleeping_mask}, 58, NIGHT_BACKGROUND);
+    drawTftDragonOnSolid({TftAssetId::DRAGON_SLEEPING}, 58,
+                         NIGHT_BACKGROUND);
   }
   drawTftCenteredText("Zzz...", 184, 2, 0xDE7F);
 }
 
 TftDragonFrame tftRollingEggFrame(int frame) {
   switch (frame % 4) {
-    case 0: return {egg_roll_01_pixels, egg_roll_01_mask};
-    case 1: return {egg_roll_02_pixels, egg_roll_02_mask};
-    case 2: return {egg_roll_03_pixels, egg_roll_03_mask};
-    default: return {egg_roll_04_pixels, egg_roll_04_mask};
+    case 0: return {TftAssetId::EGG_ROLL_01};
+    case 1: return {TftAssetId::EGG_ROLL_02};
+    case 2: return {TftAssetId::EGG_ROLL_03};
+    default: return {TftAssetId::EGG_ROLL_04};
   }
 }
 
 TftDragonFrame tftCrackingEggFrame(int frame) {
   switch (constrain(frame, 0, 2)) {
-    case 0: return {egg_crack_01_pixels, egg_crack_01_mask};
-    case 1: return {egg_crack_02_pixels, egg_crack_02_mask};
-    default: return {egg_cracked_pixels, egg_cracked_mask};
+    case 0: return {TftAssetId::EGG_CRACK_01};
+    case 1: return {TftAssetId::EGG_CRACK_02};
+    default: return {TftAssetId::EGG_CRACKED};
   }
 }
 
@@ -759,8 +748,8 @@ void drawTftBootNative() {
       drawTftSpriteOnSolid(tftRollingEggFrame(0), 64, 56, BOOT_BACKGROUND);
       drawTftCenteredText("OK: WARM ME", 190, 2, ST77XX_WHITE);
     } else {
-      drawTftSpriteOnSolid(
-          {dragon_idle1_pixels, dragon_idle1_mask}, 64, 52, BOOT_BACKGROUND);
+      drawTftSpriteOnSolid({TftAssetId::DRAGON_IDLE1}, 64, 52,
+                           BOOT_BACKGROUND);
       drawTftCenteredText(petRestored ? "WELCOME BACK!" : "HELLO!", 188, 2,
                           ST77XX_WHITE);
     }
@@ -817,10 +806,7 @@ void drawTftEggActionNative(const TftDragonFrame& frame) {
 }
 
 void beginTftUi() {
-  pinMode(FLASH_CS_PIN, OUTPUT);
-  digitalWrite(FLASH_CS_PIN, HIGH);
-  pinMode(TFT_CS_PIN, OUTPUT);
-  digitalWrite(TFT_CS_PIN, HIGH);
+  externalFlash.configureChipSelects();
   pinMode(TFT_BLK_PIN, OUTPUT);
   digitalWrite(TFT_BLK_PIN, HIGH);
 
@@ -846,14 +832,14 @@ void drawTftUi() {
   static int lastFatigue = -1;
   static int lastWarmth = -1;
   static int lastTftDragonX = -1;
-  static const uint16_t* lastTftDragonPixels = nullptr;
+  static TftAssetId lastTftAsset = TftAssetId::INVALID;
 
   if (bootPhase != BOOT_DONE) {
     drawTftBootNative();
     lastTftScreen = -1;
     lastTftDragonX = -1;
     lastTftBootPhase = static_cast<int>(bootPhase);
-    lastTftDragonPixels = nullptr;
+    lastTftAsset = TftAssetId::INVALID;
     return;
   }
 
@@ -861,7 +847,7 @@ void drawTftUi() {
   if (nativeSleepNotice) {
     drawTftSleepNoticeNative();
     lastTftScreen = -1;
-    lastTftDragonPixels = dragon_sleeping_pixels;
+    lastTftAsset = TftAssetId::DRAGON_SLEEPING;
     return;
   }
 
@@ -875,11 +861,11 @@ void drawTftUi() {
         lastTftScreen != static_cast<int>(currentScreen) ||
         lastTftBootPhase != static_cast<int>(bootPhase);
     if (fullRedraw) drawTftEggActionNative(eggFrame);
-    else if (lastTftDragonPixels != eggFrame.pixels)
+    else if (lastTftAsset != eggFrame.asset)
       drawTftSpriteOnSolid(eggFrame, 64, 52, 0xFE8C);
     lastTftScreen = static_cast<int>(currentScreen);
     lastTftBootPhase = static_cast<int>(bootPhase);
-    lastTftDragonPixels = eggFrame.pixels;
+    lastTftAsset = eggFrame.asset;
     lastWarmth = pet.warmth;
     lastTftDragonX = -1;
     return;
@@ -897,7 +883,7 @@ void drawTftUi() {
         lastWarmth < 0;
     if (fullRedraw) drawTftEggHomeNative(eggFrame);
     else {
-      if (lastTftDragonPixels != eggFrame.pixels)
+      if (lastTftAsset != eggFrame.asset)
         drawTftSpriteOnSolid(eggFrame, 64, 48, 0xFE8C);
       if (lastSelectedMenu != static_cast<int>(selectedMenu) ||
           lastWarmth != pet.warmth) drawTftEggHomeDetails();
@@ -906,7 +892,7 @@ void drawTftUi() {
     lastTftBootPhase = static_cast<int>(bootPhase);
     lastSelectedMenu = static_cast<int>(selectedMenu);
     lastWarmth = pet.warmth;
-    lastTftDragonPixels = eggFrame.pixels;
+    lastTftAsset = eggFrame.asset;
     lastTftDragonX = -1;
     return;
   }
@@ -920,7 +906,7 @@ void drawTftUi() {
     }
     lastTftScreen = static_cast<int>(currentScreen);
     lastTftBootPhase = static_cast<int>(bootPhase);
-    lastTftDragonPixels = nullptr;
+    lastTftAsset = TftAssetId::INVALID;
     lastTftDragonX = -1;
     return;
   }
@@ -940,11 +926,11 @@ void drawTftUi() {
         lastTftScreen != static_cast<int>(currentScreen) ||
         lastTftBootPhase != static_cast<int>(bootPhase);
     if (fullRedraw) drawTftActionNative(dragonFrame);
-    else if (lastTftDragonPixels != dragonFrame.pixels)
+    else if (lastTftAsset != dragonFrame.asset)
       drawTftDragonOnSolid(dragonFrame, 43, tftActionBackground());
     lastTftScreen = static_cast<int>(currentScreen);
     lastTftBootPhase = static_cast<int>(bootPhase);
-    lastTftDragonPixels = dragonFrame.pixels;
+    lastTftAsset = dragonFrame.asset;
     lastTftDragonX = -1;
     return;
   }
@@ -981,7 +967,7 @@ void drawTftUi() {
         }
         drawTftHomeMenuItem(selectedMenu, true);
       }
-      if (lastTftDragonPixels != dragonFrame.pixels ||
+      if (lastTftAsset != dragonFrame.asset ||
           lastTftDragonX != dragonX) {
         drawTftHomeDragon(dragonFrame, dragonX, lastTftDragonX);
       }
@@ -995,7 +981,7 @@ void drawTftUi() {
     lastCleanliness = pet.cleanliness;
     lastFatigue = pet.fatigue;
     lastLifeStage = static_cast<int>(pet.lifeStage);
-    lastTftDragonPixels = dragonFrame.pixels;
+    lastTftAsset = dragonFrame.asset;
     lastTftDragonX = dragonX;
     return;
   }
@@ -1586,6 +1572,10 @@ void setup() {
   Serial.printf("Wake cause: %d\n", wakeCause);
   beginTftUi();
   probeExternalHardware();
+  tftAssetsReady = tftAssets.begin(externalFlash);
+  Serial.printf("TFT assets: %s%s%s\n", tftAssetsReady ? "ready" : "error",
+                tftAssetsReady ? "" : " - ",
+                tftAssetsReady ? "" : tftAssets.error());
   pinMode(BTN_LEFT, INPUT_PULLUP);
   pinMode(BTN_OK, INPUT_PULLUP);
   pinMode(BTN_RIGHT, INPUT_PULLUP);

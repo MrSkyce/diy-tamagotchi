@@ -17,6 +17,10 @@ graphique historique 1-bit et la dépendance SSD1306 ont été retirées.
   couleur et leurs animations normalisées ont été validés sur le TFT réel ;
 - câblage final TFT/W25Q64/PCF8523 et extinction BLK en deep sleep validés.
 
+Les pixels des sprites sont stockés sur la W25Q64 dans un format RLE. L'image,
+le diagnostic des 33 CRC, leur défilement et toutes les animations dans
+l'application normale ont été validés sur le prototype réel.
+
 Instantané au 6 septembre 2026 : le câblage d'extension et son support logiciel
 ont été validés sur le prototype réel. Les changements correspondants sont
 encore dans le worktree et ne doivent être commités qu'après instruction.
@@ -97,8 +101,12 @@ complémentaires. Avec le pilote Adafruit en rotation 0, ne pas forcer l'offset
 - `src/persistence.cpp` : sérialisation NVS ;
 - `include/config.h` : pinout, versions et temporisations ;
 - `assets/tft/*.bmp` : source graphique couleur unique ;
-- `tools/generate_tft_assets.py` : BMP vers RGB565 et masque ;
-- `include/generated_tft_assets.h` : header généré et versionné ;
+- `tools/generate_tft_assets.py` : BMP vers image W25Q64 RLE RGB565 ;
+- `include/generated_tft_assets.h` : catalogue léger généré et versionné ;
+- `include/generated_tft_asset_blob.h` : image compressée du programmateur ;
+- `src/external_flash.cpp` : lecture, effacement et programmation W25Q64 ;
+- `src/tft_asset_store.cpp` : validation, décodage et cache d'une frame ;
+- `ASSET_STORAGE.md` : format et procédure de mise à jour des assets ;
 - `HARDWARE_EXPANSION_PLAN.md` : câblage cible exhaustif depuis zéro ;
 - `platformio.ini` : firmware et environnements de diagnostic.
 
@@ -114,10 +122,11 @@ framebuffer secondaire, de conversion à l'exécution ni de rendu hybride.
 
 ### Occupation mesurée
 
-Compilation avec 33 sprites TFT couleur et sans bibliothèque SSD1306 :
+Compilation applicative avec les pixels des 33 sprites retirés de la flash
+interne et un cache RAM RGB565 de 25 088 octets :
 
-- flash : 91,7 %, soit 1 202 584 octets sur 1 310 720 ;
-- RAM statique : 4,8 %, soit 15 720 octets sur 327 680.
+- flash : 26,8 %, soit 350 798 octets sur 1 310 720 ;
+- RAM statique : 12,5 %, soit 40 840 octets sur 327 680.
 
 Il n'y a pas de framebuffer 240×240 permanent, qui demanderait 115 200 octets.
 
@@ -162,16 +171,17 @@ Le câblage exhaustif est spécifié dans `HARDWARE_EXPANSION_PLAN.md` :
 
 État au 6 septembre 2026 : affichage, boutons, buzzer, RTC, lecture JEDEC,
 absence de scintillement, extinction BLK et réveil OK validés sur la carte. La
-flash externe n'a subi aucune écriture ni aucun effacement. Aucun système de
-fichiers n'est encore choisi. La conservation RTC reste à tester après ajout
-d'une pile CR1220.
+flash externe contient maintenant l'image RLE des sprites dans ses premiers
+214 128 octets. Aucun système de fichiers n'est encore choisi. La conservation
+RTC reste à tester après ajout d'une pile CR1220.
 
 ## Assets graphiques
 
 - 33 BMP 112×112 dans `assets/tft/` ;
 - magenta `#FF00FF` = transparence ;
 - formats BMP non compressés 8 ou 24 bits ;
-- pixels RGB565 et masques 1-bit précompilés dans `PROGMEM` ;
+- pixels RGB565 compressés en RLE sur W25Q64 ;
+- cache unique de 112×112 pixels en RAM, indépendant du nombre de frames ;
 - génération automatique avant chaque build ;
 - contrôle automatique de l'échelle : 5 000 à 7 300 pixels visibles par
   dragon, ratio maximal de 1,12 et écart de ligne de sol maximal de 2 pixels
@@ -193,6 +203,8 @@ fissures et éclosion.
 | `hardware-expansion-test` | câblage, RTC et JEDEC en lecture seule |
 | `deep-sleep-test` | extinction BLK et réveil OK après 5 secondes |
 | `tamagotchi-30s-test` | application complète, veille après 30 secondes |
+| `asset-flash-programmer` | écrit et vérifie l'image RLE sur la W25Q64 |
+| `asset-storage-test` | valide les 33 CRC, mesure les lectures et fait défiler les sprites |
 
 Tous utilisent le pinout de `include/config.h`. Les diagnostics autonomes sont
 exclus du firmware applicatif normal.
@@ -201,24 +213,28 @@ exclus du firmware applicatif normal.
 
 | Contrôle | État au 6 septembre 2026 |
 |---|---|
-| Génération des 33 BMP vers `generated_tft_assets.h` | validée |
-| Compilation du firmware normal | validée, flash 91,7 %, RAM 4,8 % |
-| Compilation des huit environnements PlatformIO | validée après le dernier essai matériel |
+| Génération RLE des 33 BMP | validée, 214 128 octets, round-trip vérifié |
+| Compilation du firmware normal externe | validée, flash 26,8 %, RAM 12,5 % |
+| Compilation des dix environnements PlatformIO | validée après la validation matérielle finale |
 | Téléversement sur `/dev/ttyACM0` et vérification du hash | validé |
 | HOME, jauges à cinq segments et navigation sans clignotement | validés sur le TFT |
 | 33 assets, couleurs, échelle, ancrages et animations | validés par l'utilisateur sur le TFT |
 | `NO MEDICINE`, taille et yeux canoniques | validé dans le lot graphique |
 | PCF8523 à `0x68`, sans pile et oscillateur arrêté | validé sur le matériel |
-| W25Q64 JEDEC `EF 40 17`, sans écriture/effacement | validée sur le matériel |
+| W25Q64 JEDEC `EF 40 17` | validée sur le matériel |
 | TFT, boutons et buzzer avec le câblage final | validés sur le matériel |
 | `git diff --check` | validé |
 | Veille réelle, BLK et LED bleue éteints, réveil GPIO3 | validés avec la cible applicative 30 s |
+| Programmation et vérification de l'image RLE sur W25Q64 | validée, 214 128 octets, catalogue `84E4793D` |
+| Lecture et CRC des 33 sprites depuis W25Q64 | validés, 1,03 s au total, maximum 35,5 ms |
+| Défilement des 33 sprites depuis W25Q64 | validé visuellement sans corruption ni scintillement |
+| Animations de l'application normale lues depuis W25Q64 | validées visuellement par l'utilisateur |
 
 Commandes de reprise dans l'environnement Codex :
 
 ```bash
 rtk /home/skyce/.platformio/penv/bin/pio run
-rtk /home/skyce/.platformio/penv/bin/pio run -e esp32-c3-devkitm-1 -e tamagotchi-30s-test -e st7789-test -e gpio-test -e raw-st7789-test -e hardware-st7789-test -e hardware-expansion-test -e deep-sleep-test
+rtk /home/skyce/.platformio/penv/bin/pio run -e esp32-c3-devkitm-1 -e tamagotchi-30s-test -e asset-flash-programmer -e asset-storage-test -e st7789-test -e gpio-test -e raw-st7789-test -e hardware-st7789-test -e hardware-expansion-test -e deep-sleep-test
 rtk /home/skyce/.platformio/penv/bin/pio run -t upload --upload-port /dev/ttyACM0
 rtk git diff --check
 rtk git status --short --branch

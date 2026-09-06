@@ -22,8 +22,9 @@ bibliothèques Adafruit déclarées dans `platformio.ini`.
 - `src/main.cpp` : comportement applicatif actuel.
 - `include/config.h` : pinout et configuration écran.
 - `assets/tft/` : unique source de vérité des sprites BMP couleur.
-- `tools/generate_tft_assets.py` : génère les pixels RGB565 et masques TFT.
-- `include/generated_tft_assets.h` : assets TFT couleur générés.
+- `tools/generate_tft_assets.py` : valide et compresse les BMP en RLE RGB565.
+- `include/generated_tft_assets.h` : catalogue léger généré des assets.
+- `ASSET_STORAGE.md` : format W25Q64 et procédure de programmation USB.
 - `GRAPHICS_PLAN.md` : contrat graphique et couverture des écrans.
 - `HARDWARE_EXPANSION_PLAN.md` : câblage complet validé du W25Q64, PCF8523 et BLK.
 - `HANDOFF.md` : contexte et roadmap.
@@ -55,6 +56,8 @@ pio run -e st7789-test
 pio run -e hardware-expansion-test
 pio run -e deep-sleep-test
 pio run -e tamagotchi-30s-test
+pio run -e asset-flash-programmer
+pio run -e asset-storage-test
 ```
 
 Ces diagnostics utilisent tous le pinout central de `include/config.h`.
@@ -154,8 +157,9 @@ effacer la sauvegarde NVS et recréer un nouvel œuf.
 Les sources TFT sont des BMP couleur non compressés placés dans `assets/tft/`.
 Le magenta pur `#FF00FF` représente la transparence. Le générateur
 `tools/generate_tft_assets.py` accepte les BMP 8 ou 24 bits, convertit chaque
-pixel en RGB565 et produit un masque de transparence 1 bit dans
-`include/generated_tft_assets.h`. Les 33 assets mesurent 112×112 px. Ils
+pixel en RGB565 et produit une image RLE destinée à la W25Q64. L'application
+charge une seule frame à la fois dans un cache RAM de 25 088 octets. Les
+33 assets mesurent 112×112 px. Ils
 couvrent toutes les expressions et actions du dragon, ses quatre frames de
 marche, le sommeil, les quatre rotations de l'œuf et ses trois étapes
 d'éclosion. Les rotations animent l'œuf au repos ; les trois fissures sont
@@ -166,6 +170,12 @@ plage de surface visible commune et deux frames d'une même animation ne peuvent
 pas différer de plus de 12 %. La ligne de sol de deux frames ne peut pas non
 plus varier de plus de 2 pixels. La compilation échoue si ce contrat est violé.
 
-Les 33 assets et leurs animations ont été validés sur le TFT réel le
-5 septembre 2026, notamment l'échelle, les ancrages et les yeux canoniques de
-`dragon_medicine_01`.
+Les 33 assets et leurs animations ont été validés sur le TFT réel, puis depuis
+la W25Q64 le 6 septembre 2026, notamment l'échelle, les ancrages et les yeux
+canoniques de `dragon_medicine_01`.
+
+Le format actuel occupe 214 128 octets sur la W25Q64, soit 25,9 % des pixels
+RGB565 bruts et environ 2,6 % de la mémoire externe. Voir `ASSET_STORAGE.md`
+pour programmer les assets et ajouter de futures frames. Sur le prototype, les
+33 CRC ont été validés depuis la mémoire externe et la frame la plus lente se
+charge en 35,5 ms à 8 MHz.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import struct
+import zlib
 from pathlib import Path
 
 
@@ -18,6 +19,7 @@ else:
 
 ASSETS_DIR = PROJECT_ROOT / "assets" / "tft"
 OUTPUT_PATH = PROJECT_ROOT / "include" / "generated_tft_assets.h"
+FLASH_BLOB_PATH = PROJECT_ROOT / "include" / "generated_tft_asset_blob.h"
 TRANSPARENT_RGB = (255, 0, 255)
 EXPECTED_ASSET_SIZE = (112, 112)
 DRAGON_VISIBLE_PIXEL_RANGE = (5000, 7300)
@@ -95,17 +97,6 @@ def rgb565(red: int, green: int, blue: int) -> int:
     return ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3)
 
 
-def mask_bytes(width: int, height: int,
-               pixels: list[tuple[int, int, int]]) -> list[int]:
-    row_bytes = (width + 7) // 8
-    output = [0] * (row_bytes * height)
-    for y in range(height):
-        for x in range(width):
-            if pixels[y * width + x] != TRANSPARENT_RGB:
-                output[y * row_bytes + x // 8] |= 0x80 >> (x % 8)
-    return output
-
-
 def validate_asset_scale(
         assets: dict[str, tuple[int, int, list[tuple[int, int, int]]]]) -> None:
     visible_pixels = {}
@@ -150,13 +141,125 @@ def validate_asset_scale(
                 f"{MAX_ANIMATION_BOTTOM_DELTA}px ({bottoms})")
 
 
-def format_values(values: list[int], digits: int, per_line: int) -> str:
+FLASH_MAGIC = b"TAMASPR\0"
+FLASH_FORMAT_VERSION = 1
+FLASH_HEADER_FORMAT = "<8sHHIII"
+FLASH_ENTRY_FORMAT = "<IIIHH"
+
+
+def format_values(values: bytes, digits: int, per_line: int) -> str:
     lines = []
     for start in range(0, len(values), per_line):
         chunk = ", ".join(
             f"0x{value:0{digits}X}" for value in values[start:start + per_line])
         lines.append(f"  {chunk},")
     return "\n".join(lines)
+
+
+def enum_name(name: str) -> str:
+    return name.upper()
+
+
+def pixels_as_bytes(pixels: list[int]) -> bytes:
+    return b"".join(struct.pack("<H", pixel) for pixel in pixels)
+
+
+def compress_pixels(pixels: list[int]) -> bytes:
+    """PackBits-like RGB565 RLE: literal or repeated runs of 1..128 pixels."""
+    output = bytearray()
+    index = 0
+    while index < len(pixels):
+        run_length = 1
+        while (index + run_length < len(pixels) and
+               pixels[index + run_length] == pixels[index] and
+               run_length < 128):
+            run_length += 1
+
+        if run_length >= 3:
+            output.append(0x80 | (run_length - 1))
+            output.extend(struct.pack("<H", pixels[index]))
+            index += run_length
+            continue
+
+        literal_start = index
+        index += run_length
+        while index < len(pixels) and index - literal_start < 128:
+            next_run = 1
+            while (index + next_run < len(pixels) and
+                   pixels[index + next_run] == pixels[index] and
+                   next_run < 128):
+                next_run += 1
+            if next_run >= 3:
+                break
+            index += min(next_run, 128 - (index - literal_start))
+
+        literal_length = index - literal_start
+        output.append(literal_length - 1)
+        output.extend(pixels_as_bytes(
+            pixels[literal_start:literal_start + literal_length]))
+    return bytes(output)
+
+
+def decompress_pixels(data: bytes, expected_count: int) -> list[int]:
+    """Host-side round-trip validation of the embedded RLE decoder contract."""
+    output = []
+    offset = 0
+    while offset < len(data) and len(output) < expected_count:
+        control = data[offset]
+        offset += 1
+        count = (control & 0x7F) + 1
+        if control & 0x80:
+            if offset + 2 > len(data):
+                raise ValueError("truncated repeated RLE packet")
+            pixel = struct.unpack_from("<H", data, offset)[0]
+            offset += 2
+            output.extend([pixel] * count)
+        else:
+            byte_count = count * 2
+            if offset + byte_count > len(data):
+                raise ValueError("truncated literal RLE packet")
+            output.extend(struct.unpack_from(f"<{count}H", data, offset))
+            offset += byte_count
+    if offset != len(data) or len(output) != expected_count:
+        raise ValueError("RLE stream does not decode to the expected size")
+    return output
+
+
+def build_flash_image(
+        sources: list[Path],
+        assets: dict[str, tuple[int, int, list[tuple[int, int, int]]]],
+) -> tuple[bytes, int, int]:
+    catalog_data = b"".join(asset_name(path).encode("ascii") + b"\0"
+                            for path in sources)
+    catalog_crc = zlib.crc32(catalog_data) & 0xFFFFFFFF
+    header_size = struct.calcsize(FLASH_HEADER_FORMAT)
+    entry_size = struct.calcsize(FLASH_ENTRY_FORMAT)
+    payload_offset = header_size + entry_size * len(sources)
+    entries = bytearray()
+    payload = bytearray()
+    raw_size = 0
+
+    for path in sources:
+        name = asset_name(path)
+        width, height, source_pixels = assets[name]
+        pixels = [rgb565(*pixel) for pixel in source_pixels]
+        raw = pixels_as_bytes(pixels)
+        compressed = compress_pixels(pixels)
+        if decompress_pixels(compressed, len(pixels)) != pixels:
+            raise ValueError(f"{path.name}: RLE round-trip mismatch")
+        offset = payload_offset + len(payload)
+        entries.extend(struct.pack(
+            FLASH_ENTRY_FORMAT, offset, len(compressed),
+            zlib.crc32(raw) & 0xFFFFFFFF, width, height))
+        payload.extend(compressed)
+        raw_size += len(raw)
+
+    body = bytes(entries + payload)
+    image_size = header_size + len(body)
+    header = struct.pack(
+        FLASH_HEADER_FORMAT, FLASH_MAGIC, FLASH_FORMAT_VERSION, len(sources),
+        catalog_crc, image_size, zlib.crc32(body) & 0xFFFFFFFF)
+    return header + body, catalog_crc, raw_size
 
 
 def generate() -> None:
@@ -169,33 +272,56 @@ def generate() -> None:
         assets[asset_name(path)] = read_color_bmp(path)
     validate_asset_scale(assets)
 
+    flash_image, catalog_crc, raw_size = build_flash_image(sources, assets)
     header = [
+        "// Generated by tools/generate_tft_assets.py. Do not edit manually.",
+        "#pragma once",
+        "",
+        "#include <cstddef>",
+        "#include <cstdint>",
+        "",
+        "enum class TftAssetId : uint16_t {",
+    ]
+    for index, path in enumerate(sources):
+        header.append(f"  {enum_name(asset_name(path))} = {index},")
+    header.extend([
+        f"  COUNT = {len(sources)},",
+        "  INVALID = 0xFFFF,",
+        "};",
+        "",
+        f"constexpr uint16_t TFT_ASSET_FORMAT_VERSION = {FLASH_FORMAT_VERSION};",
+        f"constexpr uint16_t TFT_ASSET_COUNT = {len(sources)};",
+        f"constexpr uint16_t TFT_ASSET_WIDTH = {EXPECTED_ASSET_SIZE[0]};",
+        f"constexpr uint16_t TFT_ASSET_HEIGHT = {EXPECTED_ASSET_SIZE[1]};",
+        f"constexpr size_t TFT_ASSET_PIXEL_COUNT = "
+        f"{EXPECTED_ASSET_SIZE[0] * EXPECTED_ASSET_SIZE[1]};",
+        f"constexpr uint16_t TFT_ASSET_TRANSPARENT = "
+        f"0x{rgb565(*TRANSPARENT_RGB):04X};",
+        f"constexpr uint32_t TFT_ASSET_CATALOG_CRC32 = 0x{catalog_crc:08X};",
+        f"constexpr uint32_t TFT_ASSET_FLASH_IMAGE_SIZE = {len(flash_image)};",
+        f"constexpr uint32_t TFT_ASSET_RAW_PIXEL_SIZE = {raw_size};",
+        "",
+    ])
+
+    OUTPUT_PATH.write_text("\n".join(header), encoding="utf-8")
+
+    blob_header = [
         "// Generated by tools/generate_tft_assets.py. Do not edit manually.",
         "#pragma once",
         "",
         "#include <Arduino.h>",
         "",
+        "const uint8_t tft_asset_flash_image[] PROGMEM = {",
+        format_values(flash_image, 2, 16),
+        "};",
+        "constexpr size_t tft_asset_flash_image_size =",
+        "    sizeof(tft_asset_flash_image);",
+        "",
     ]
-    for path in sources:
-        name = asset_name(path)
-        width, height, pixels = assets[name]
-        colors = [rgb565(*pixel) for pixel in pixels]
-        mask = mask_bytes(width, height, pixels)
-        header.extend([
-            f"constexpr uint16_t {name}_width = {width};",
-            f"constexpr uint16_t {name}_height = {height};",
-            f"const uint16_t {name}_pixels[] PROGMEM = {{",
-            format_values(colors, 4, 10),
-            "};",
-            f"const uint8_t {name}_mask[] PROGMEM = {{",
-            format_values(mask, 2, 12),
-            "};",
-            "",
-        ])
-
-    OUTPUT_PATH.write_text("\n".join(header), encoding="utf-8")
-    print(f"Generated {OUTPUT_PATH.relative_to(PROJECT_ROOT)} "
-          f"from {len(sources)} TFT BMP assets")
+    FLASH_BLOB_PATH.write_text("\n".join(blob_header), encoding="utf-8")
+    ratio = len(flash_image) / raw_size
+    print(f"Generated W25Q64 image from {len(sources)} TFT BMP assets: "
+          f"{len(flash_image)} bytes ({ratio:.1%} of RGB565)")
 
 
 if BUILD_ENV is not None or __name__ == "__main__":
