@@ -25,16 +25,15 @@ bibliothèques Adafruit déclarées dans `platformio.ini`.
 - `tools/generate_tft_assets.py` : génère les pixels RGB565 et masques TFT.
 - `include/generated_tft_assets.h` : assets TFT couleur générés.
 - `GRAPHICS_PLAN.md` : contrat graphique et couverture des écrans.
-- `HARDWARE_EXPANSION_PLAN.md` : câblage cible W25Q64, PCF8523 et BLK.
+- `HARDWARE_EXPANSION_PLAN.md` : câblage complet validé du W25Q64, PCF8523 et BLK.
 - `HANDOFF.md` : contexte et roadmap.
 
 ### Écran IPS ST7789
 
 Le firmware affiche une interface native colorée 240×240 sur le ST7789 avec
 Adafruit GFX. Le module actuel est un ZJY154S0800TG01 de 1,54 pouce. Sa broche
-`CS`, active à LOW, est reliée
-à GND ; le pilote utilise donc `-1` comme broche CS. Il est validé en SPI
-matériel mode 3 à 32 MHz,
+`CS`, active à LOW, est pilotée par GPIO9 afin de partager le bus avec la
+mémoire W25Q64. Il est validé en SPI matériel mode 3 à 32 MHz,
 avec l'inversion IPS active et l'offset Adafruit de 80 lignes correspondant à
 l'orientation retournée du montage. Les jauges TFT ne sont redessinées que
 lorsque leur valeur change afin d'éviter le clignotement.
@@ -53,11 +52,17 @@ pio run -e gpio-test
 pio run -e raw-st7789-test
 pio run -e hardware-st7789-test
 pio run -e st7789-test
+pio run -e hardware-expansion-test
+pio run -e deep-sleep-test
+pio run -e tamagotchi-30s-test
 ```
 
 Ces diagnostics utilisent tous le pinout central de `include/config.h`.
-`gpio-test` ne pilote que SCLK, MOSI, DC et RESET ; il ne touche ni aux GPIO0/1
-libérés ni au GPIO5 réservé au buzzer.
+`hardware-expansion-test` contrôle le câblage commun, détecte le PCF8523 et lit
+l'identifiant JEDEC sans écrire dans la mémoire. `deep-sleep-test` vérifie
+l'extinction de BLK et le réveil. `tamagotchi-30s-test` exécute l'application
+complète avec une veille ramenée à 30 secondes ; la cible normale reste à
+10 minutes.
 
 Le diagnostic matériel a établi que le mode 0 laisse cette dalle noire, que
 `INVON` est nécessaire pour obtenir les couleurs attendues et que l'offset
@@ -66,44 +71,37 @@ Adafruit en rotation 0. Ne pas transposer un offset d'un pilote à l'autre.
 
 ## Pinout
 
-- GPIO0 : libre, ancien SDA de l'écran retiré
-- GPIO1 : libre, ancien SCL de l'écran retiré
+- RTC SDA : GPIO0
+- RTC SCL : GPIO1
 - A / Left : GPIO21
 - B / OK : GPIO3
-- C / Right : GPIO10
+- C / Right : GPIO8
 - Buzzer : GPIO5
 - TFT SCK : GPIO4
 - TFT MOSI / SDA : GPIO6
 - TFT DC : GPIO7
-- TFT RESET : GPIO20
-- TFT CS : GND (sélection permanente)
-- TFT VCC et BLK : 3,3 V
+- TFT RESET : réseau RC autonome, aucun GPIO
+- TFT CS : GPIO9, pull-up 10 kΩ vers 3,3 V
+- TFT BLK : GPIO10
+- Flash CS : GPIO2, pull-up 10 kΩ vers 3,3 V
+- Flash MISO : GPIO20
+- TFT et flash VCC : 3,3 V
 
 Les boutons sont câblés entre le GPIO et GND et utilisent les résistances de
 tirage internes (`INPUT_PULLUP`).
 Chaque appui est validé après 35 ms stables afin d'éliminer les rebonds
 mécaniques, sans bloquer la boucle principale.
 
-Le TFT dont `CS` est relié à GND ne peut pas partager simplement son bus avec
-la mémoire W25Q64 : celle-ci reste volontairement non câblée. Sans `MISO`, le firmware ne
-peut pas lire les registres du contrôleur. Enfin, `BLK` étant relié directement
-au 3,3 V, le rétroéclairage reste alimenté même lorsque le contrôleur TFT est
-désactivé avant le deep sleep.
+Le bus SPI est partagé entre le TFT et la W25Q64 grâce à leurs CS distincts.
+Le reset du TFT utilise un réseau autonome de 10 kΩ vers 3,3 V et 100 nF vers
+GND, car le Super Mini ne possède pas de RESET/EN exposé. Le module TFT intègre
+déjà le transistor de BLK ; GPIO10 HIGH l'allume et LOW l'éteint. Le bouton
+droit a été déplacé sur GPIO8 pour éviter que la LED bleue active à LOW du
+Super Mini reste allumée pendant le deep sleep. `SQW` du PCF8523 est déconnecté.
 
-### Extension matérielle en cours de câblage
-
-Le pinout cible pour partager le bus SPI avec un W25Q64 3,3 V, ajouter un RTC
-Adafruit PCF8523 et couper réellement BLK est décrit dans
-`HARDWARE_EXPANSION_PLAN.md`. Ce pinout n'est pas encore actif dans le firmware :
-GPIO20 reste pour l'instant une sortie RESET du TFT. Ne pas connecter le MISO
-du W25Q64 à GPIO20 avant le téléversement du firmware adapté.
-
-Le plan cible utilise GPIO0/1 pour le PCF8523, GPIO2 pour le CS du W25Q64,
-GPIO8 directement pour BLK, GPIO9 pour le CS du TFT et GPIO20 pour MISO. Le
-RESET du TFT utilise un réseau autonome de 10 kΩ vers 3,3 V et 100 nF vers GND,
-car le Super Mini ne possède pas de RESET/EN exposé. Le module TFT intègre déjà
-le transistor de BLK ; HIGH l'allume et LOW l'éteint. `SQW` du PCF8523 reste
-déconnecté lors de la première intégration.
+La W25Q64 répond avec l'identifiant JEDEC `EF 40 17`. Le PCF8523 répond à
+`0x68` ; sans pile CR1220, son oscillateur reste arrêté. Le firmware réalise
+ces détections au démarrage sans écrire dans les périphériques externes.
 
 La barre inférieure du HOME expose six icônes : FOOD, PLAY, MEDICINE, CLEAN,
 SLEEP et STATUS. L'icône sélectionnée est mise en évidence et le nom complet de
@@ -131,12 +129,14 @@ correspond exactement au firmware `v0.6` : une sauvegarde d'une autre version
 est volontairement ignorée et un nouveau dragon est créé. Elle est regroupée
 après les actions et actualisée périodiquement pour limiter l'usure de la flash.
 
-## Veille profonde (test)
+## Veille profonde
 
 Après 10 minutes sans appui, le prototype sauvegarde le dragon, affiche
 `GOOD NIGHT`, éteint le contrôleur TFT, puis entre en deep sleep. Le
-bouton OK (GPIO3) réveille la carte. Le rétroéclairage reste alimenté tant que
-`BLK` est relié directement au 3,3 V.
+bouton OK (GPIO3) réveille la carte. GPIO10 est maintenu à LOW pendant la veille,
+ce qui éteint complètement le rétroéclairage. Ce cycle a été validé sur le
+prototype. L'environnement `tamagotchi-30s-test` permet de le retester avec
+une temporisation de 30 secondes sans modifier les 10 minutes de la cible normale.
 
 ## Cycle de vie
 

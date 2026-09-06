@@ -1,19 +1,15 @@
 # Câblage complet — ESP32-C3 Super Mini, TFT, W25Q64 et RTC
 
-## État et avertissement
+## État validé
 
-Ce document décrit le montage cible complet, comme pour un câblage réalisé
-depuis zéro. Le montage et le firmware de diagnostic ne sont pas encore
-validés ensemble sur le prototype.
+Ce document décrit le montage complet, comme pour un câblage réalisé depuis
+zéro. Le câblage et le firmware `v0.6` adapté ont été validés ensemble sur le
+prototype réel le 6 septembre 2026 : TFT sans scintillement, boutons, buzzer,
+RTC détecté, lecture JEDEC de la mémoire et deep sleep avec extinction du
+rétroéclairage.
 
-Le firmware `v0.6` du commit `2875ae6` utilise encore GPIO20 comme sortie RESET
-du TFT, considère le CS du TFT relié à GND et ne pilote pas BLK. Tant que le
-firmware adapté n'a pas été téléversé :
-
-- laisser `DO/MISO` du W25Q64 déconnecté de GPIO20 ;
-- ne pas s'attendre à un affichage fonctionnel avec le nouveau câblage du CS ;
-- ne réaliser ou modifier les connexions que lorsque l'USB et toute autre
-  alimentation sont débranchés.
+Ne réaliser ou modifier les connexions que lorsque l'USB et toute autre
+alimentation sont débranchés.
 
 ## Alimentation et masse communes
 
@@ -37,16 +33,18 @@ firmware adapté n'a pas été téléversé :
 | 5 | borne positive du buzzer passif | sortie audio, borne négative vers GND |
 | 6 | `SDA` du TFT et `DI/IO0` du W25Q64 | MOSI du bus SPI partagé |
 | 7 | `DC` du TFT | sélection données/commandes |
-| 8 | `BLK` du TFT, connexion directe | HIGH = allumé, LOW = éteint |
+| 8 | une borne du bouton droite | entrée `INPUT_PULLUP`, autre borne vers GND |
 | 9 | `CS` du TFT | sortie, pull-up externe 10 kΩ vers 3,3 V |
-| 10 | une borne du bouton droite | entrée `INPUT_PULLUP`, autre borne vers GND |
-| 20 | `DO/IO1` du W25Q64 | MISO, à connecter seulement après adaptation du firmware |
+| 10 | `BLK` du TFT, connexion directe | HIGH = allumé, LOW = éteint |
+| 20 | `DO/IO1` du W25Q64 | MISO du bus SPI partagé |
 | 21 | une borne du bouton gauche | entrée `INPUT_PULLUP`, autre borne vers GND |
 | 18, 19 | aucune connexion | USB natif |
 
-GPIO2, GPIO8 et GPIO9 sont des broches de strapping. Les pull-ups des deux CS
-et le pull-up interne du circuit BLK du module TFT les maintiennent à HIGH au
-démarrage, conformément au montage cible.
+GPIO2, GPIO8 et GPIO9 sont des broches de strapping. Les deux CS possèdent un
+pull-up de 10 kΩ. Le bouton droit met GPIO8 à LOW lorsqu'il est pressé ; ne pas
+le maintenir pendant une mise sous tension ou un reset. La LED bleue intégrée
+au Super Mini est également reliée à GPIO8, active à LOW : elle s'allume
+normalement pendant l'appui sur le bouton droit.
 
 ## TFT ZJY154S0800TG01
 
@@ -62,7 +60,7 @@ ainsi :
 | `RES/RST` | réseau RC autonome décrit ci-dessous, aucun GPIO |
 | `DC` | GPIO7 |
 | `CS` | GPIO9 et résistance de 10 kΩ vers 3,3 V |
-| `BLK` | GPIO8 directement, sans transistor ni résistance externe |
+| `BLK` | GPIO10 directement, sans transistor ni résistance externe |
 
 ### Reset autonome du TFT
 
@@ -86,10 +84,14 @@ logiciel du ST7789.
 Le module TFT intègre déjà un transistor S8050, une résistance de base de 1 kΩ
 et un pull-up de 10 kΩ. Aucun transistor externe n'est nécessaire :
 
-- relier BLK directement à GPIO8 ;
-- GPIO8 HIGH ou haute impédance : rétroéclairage allumé ;
-- GPIO8 LOW : rétroéclairage éteint ;
-- le firmware devra maintenir GPIO8 à LOW pendant le deep sleep.
+- relier BLK directement à GPIO10 ;
+- GPIO10 HIGH ou haute impédance : rétroéclairage allumé ;
+- GPIO10 LOW : rétroéclairage éteint ;
+- le firmware maintient GPIO10 à LOW pendant le deep sleep.
+
+BLK avait d'abord été essayé sur GPIO8. Ce montage éteignait correctement
+l'écran, mais allumait la LED bleue du Super Mini pendant toute la veille.
+L'échange définitif BLK GPIO10 / bouton droit GPIO8 supprime ce défaut.
 
 ## Mémoire SPI W25Q64 2,7–3,6 V
 
@@ -101,7 +103,7 @@ Toutes les broches du module doivent être câblées ainsi :
 | `GND` | GND commun |
 | `CLK` | GPIO4, SPI SCLK partagé |
 | `DI/IO0` | GPIO6, SPI MOSI partagé |
-| `DO/IO1` | GPIO20, SPI MISO — laisser ouvert avant le firmware adapté |
+| `DO/IO1` | GPIO20, SPI MISO |
 | `CS` | GPIO2 et résistance de 10 kΩ vers 3,3 V |
 | `WP/IO2` | résistance de 10 kΩ vers 3,3 V |
 | `HOLD`, `RESET` ou `IO3` | résistance de 10 kΩ vers 3,3 V |
@@ -123,9 +125,11 @@ Toutes les connexions nécessaires sont les suivantes :
 | `SQW` | aucune connexion pour la première intégration |
 
 Le breakout Adafruit possède déjà des pull-ups de 10 kΩ sur SDA et SCL : ne
-pas en ajouter. Installer une pile CR1220 dans son support. L'adresse I2C fixe
-est `0x68`. Le futur firmware utilisera `RTClib` et ne modifiera l'heure que
-sur commande explicite afin de ne pas la réinitialiser à chaque démarrage.
+pas en ajouter. L'adresse I2C fixe est `0x68`. Le prototype a été validé sans
+pile : le composant répond, mais son oscillateur est arrêté et l'heure ne peut
+pas survivre à une coupure. Installer une CR1220 avant d'exiger la conservation
+de l'heure. Le firmware courant détecte le RTC en lecture seule et ne règle pas
+encore l'heure.
 
 ## Boutons
 
@@ -136,7 +140,7 @@ Les boutons n'ont pas besoin de résistance externe, car le firmware utilise
 |---|---|---|
 | gauche | GPIO21 | GND commun |
 | OK | GPIO3 | GND commun |
-| droite | GPIO10 | GND commun |
+| droite | GPIO8 | GND commun |
 
 Le bouton OK sur GPIO3 reste la source de réveil du deep sleep.
 
@@ -166,27 +170,24 @@ Ce câblage reprend le buzzer déjà validé sur le prototype.
 2. Réaliser toutes les masses et alimentations 3,3 V.
 3. Câbler les boutons et le buzzer.
 4. Câbler entièrement le TFT, y compris son reset RC, son CS et BLK.
-5. Câbler entièrement le PCF8523 et installer la CR1220.
+5. Câbler entièrement le PCF8523 ; la CR1220 peut être installée ultérieurement.
 6. Câbler VCC, GND, CLK, DI, CS, WP et HOLD du W25Q64 avec leurs composants.
-7. Laisser uniquement `DO/MISO → GPIO20` ouvert.
-8. Hors tension, vérifier au multimètre l'absence de court-circuit entre 3,3 V
+7. Hors tension, vérifier au multimètre l'absence de court-circuit entre 3,3 V
    et GND, puis contrôler chaque liaison.
-9. Adapter, compiler et téléverser le firmware de diagnostic.
-10. Vérifier le TFT, le RTC et la commande BLK.
-11. Débrancher l'alimentation, connecter `DO/MISO → GPIO20`, puis remettre sous
-    tension et lire l'identifiant JEDEC sans écriture ni effacement.
+8. Compiler et téléverser `hardware-expansion-test`.
+9. Vérifier le TFT, le RTC, les boutons et la commande BLK.
+10. Lire l'identifiant JEDEC sans écriture ni effacement.
 
-## Prochaine étape logicielle
+## État logiciel
 
-- déclarer TFT CS GPIO9, flash CS GPIO2, BLK GPIO8, MISO GPIO20 et I2C GPIO0/1 ;
-- configurer BLK à HIGH pour allumer et à LOW pour éteindre ;
-- mettre les deux CS à HIGH avant l'initialisation du bus SPI ;
-- initialiser le ST7789 avec `CS = 9` et `RST = -1` ;
-- partager le bus avec des transactions SPI indépendantes ;
-- détecter le W25Q64 par son identifiant JEDEC, en lecture seule ;
-- détecter le PCF8523 à l'adresse `0x68` et lire l'heure ;
-- vérifier l'extinction réelle de BLK et son maintien à LOW en deep sleep ;
-- ne choisir un système de fichiers qu'après ces validations électriques.
+- TFT CS GPIO9, flash CS GPIO2, BLK GPIO10, MISO GPIO20 et I2C GPIO0/1 actifs ;
+- deux CS placés à HIGH avant l'initialisation du bus SPI ;
+- ST7789 initialisé avec `CS = 9` et `RST = -1` ;
+- transactions indépendantes sur le bus SPI partagé ;
+- W25Q64 détectée en lecture seule avec l'identifiant JEDEC `EF 40 17` ;
+- PCF8523 détecté à `0x68`, oscillateur arrêté en l'absence de pile ;
+- BLK maintenu à LOW pendant le deep sleep, extinction réelle validée ;
+- aucun système de fichiers ni écriture/effacement de la W25Q64 à ce stade.
 
 ## Critères de validation
 
@@ -194,7 +195,7 @@ Ce câblage reprend le buzzer déjà validé sur le prototype.
 - reset fiable du TFT après plusieurs mises sous tension ;
 - TFT identique à la version validée, sans conflit SPI ni clignotement ;
 - identifiant JEDEC stable sur plusieurs redémarrages ;
-- date PCF8523 conservée après coupure grâce à la CR1220 ;
+- date PCF8523 conservée après coupure grâce à la CR1220 : non testée, pile absente ;
 - BLK complètement éteint pendant le deep sleep ;
 - boutons, buzzer et réveil GPIO3 inchangés.
 

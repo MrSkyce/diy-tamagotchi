@@ -3,9 +3,9 @@
 #include "config.h"
 
 constexpr uint8_t TEST_PINS[] = {
-    TFT_SCLK_PIN, TFT_MOSI_PIN, TFT_DC_PIN, TFT_RST_PIN};
+    TFT_SCLK_PIN, TFT_MOSI_PIN, TFT_DC_PIN, TFT_CS_PIN, TFT_BLK_PIN};
 constexpr const char* TEST_PIN_NAMES[] = {
-    "SCLK GPIO4", "MOSI GPIO6", "DC GPIO7", "RST GPIO20"};
+    "SCLK GPIO4", "MOSI GPIO6", "DC GPIO7", "CS GPIO9", "BLK GPIO10"};
 constexpr size_t TEST_PIN_COUNT = sizeof(TEST_PINS) / sizeof(TEST_PINS[0]);
 constexpr unsigned long LOW_INTERVAL_MS = 2000;
 constexpr unsigned long HIGH_INTERVAL_MS = 10000;

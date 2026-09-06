@@ -5,12 +5,14 @@
 
 #include "config.h"
 
-// Module ZJY154S0800TG01 : broche CS exposée mais reliée à GND.
-constexpr int8_t TFT_CS = -1;
-
-Adafruit_ST7789 tft(&SPI, TFT_CS, TFT_DC_PIN, TFT_RST_PIN);
+Adafruit_ST7789 tft(&SPI, TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
 
 void setup() {
+  pinMode(FLASH_CS_PIN, OUTPUT);
+  digitalWrite(FLASH_CS_PIN, HIGH);
+  pinMode(TFT_BLK_PIN, OUTPUT);
+  digitalWrite(TFT_BLK_PIN, HIGH);
+  SPI.begin(TFT_SCLK_PIN, SPI_MISO_PIN, TFT_MOSI_PIN, -1);
   // La bibliothèque initialise le bus matériel à 32 MHz.
   tft.init(TFT_WIDTH, TFT_HEIGHT, SPI_MODE3);
   // En rotation 0 (image retournee de 180 degres), l'offset Adafruit de

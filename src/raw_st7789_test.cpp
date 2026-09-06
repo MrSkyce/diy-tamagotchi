@@ -48,13 +48,6 @@ void fill(uint16_t rowStart, uint16_t color) {
 }
 
 void initialiseTft() {
-  digitalWrite(TFT_RST_PIN, HIGH);
-  delay(5);
-  digitalWrite(TFT_RST_PIN, LOW);
-  delay(20);
-  digitalWrite(TFT_RST_PIN, HIGH);
-  delay(150);
-
   command(0x01); // SWRESET
   delay(150);
   command(0x11); // SLPOUT
@@ -72,11 +65,13 @@ void initialiseTft() {
 
 void setup() {
   for (const uint8_t pin : {
-           TFT_DC_PIN, TFT_MOSI_PIN, TFT_SCLK_PIN, TFT_RST_PIN}) {
+           TFT_DC_PIN, TFT_MOSI_PIN, TFT_SCLK_PIN, TFT_CS_PIN,
+           TFT_BLK_PIN, FLASH_CS_PIN}) {
     pinMode(pin, OUTPUT);
-    digitalWrite(pin, LOW);
+    digitalWrite(pin, HIGH);
   }
   digitalWrite(TFT_SCLK_PIN, HIGH);
+  digitalWrite(TFT_CS_PIN, LOW);
   initialiseTft();
 }
 

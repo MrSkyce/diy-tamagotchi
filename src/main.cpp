@@ -2,6 +2,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
 #include <SPI.h>
+#include <Wire.h>
+#include <driver/gpio.h>
 #include <esp_sleep.h>
 #include <esp_system.h>
 
@@ -9,8 +11,57 @@
 #include "generated_tft_assets.h"
 #include "persistence.h"
 
-// Le CS du ZJY154S0800TG01 est maintenu actif par son câblage à GND.
-Adafruit_ST7789 spiTft(&SPI, -1, TFT_DC_PIN, TFT_RST_PIN);
+Adafruit_ST7789 spiTft(&SPI, TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
+
+struct ExternalHardwareStatus {
+  bool flashDetected = false;
+  uint8_t flashManufacturer = 0;
+  uint8_t flashMemoryType = 0;
+  uint8_t flashCapacity = 0;
+  bool rtcDetected = false;
+  bool rtcClockRunning = false;
+};
+
+ExternalHardwareStatus externalHardware;
+
+void probeExternalHardware() {
+  Wire.begin(RTC_SDA_PIN, RTC_SCL_PIN);
+  Wire.beginTransmission(RTC_ADDRESS);
+  Wire.write(0x03); // Registre des secondes, lecture du drapeau oscillateur.
+  if (Wire.endTransmission(false) == 0 &&
+      Wire.requestFrom(RTC_ADDRESS, static_cast<uint8_t>(1)) == 1) {
+    externalHardware.rtcDetected = true;
+    externalHardware.rtcClockRunning = (Wire.read() & 0x80) == 0;
+  }
+
+  digitalWrite(TFT_CS_PIN, HIGH);
+  SPI.beginTransaction(
+      SPISettings(FLASH_SPI_FREQUENCY, MSBFIRST, SPI_MODE0));
+  digitalWrite(FLASH_CS_PIN, LOW);
+  SPI.transfer(0x9F); // Identifiant JEDEC, lecture seule.
+  externalHardware.flashManufacturer = SPI.transfer(0x00);
+  externalHardware.flashMemoryType = SPI.transfer(0x00);
+  externalHardware.flashCapacity = SPI.transfer(0x00);
+  digitalWrite(FLASH_CS_PIN, HIGH);
+  SPI.endTransaction();
+
+  const bool flashAllZero = externalHardware.flashManufacturer == 0x00 &&
+                            externalHardware.flashMemoryType == 0x00 &&
+                            externalHardware.flashCapacity == 0x00;
+  const bool flashAllHigh = externalHardware.flashManufacturer == 0xFF &&
+                            externalHardware.flashMemoryType == 0xFF &&
+                            externalHardware.flashCapacity == 0xFF;
+  externalHardware.flashDetected = !flashAllZero && !flashAllHigh;
+
+  Serial.printf("W25Q64 JEDEC: %02X %02X %02X (%s)\n",
+                externalHardware.flashManufacturer,
+                externalHardware.flashMemoryType,
+                externalHardware.flashCapacity,
+                externalHardware.flashDetected ? "detected" : "missing");
+  Serial.printf("PCF8523: %s, oscillator %s\n",
+                externalHardware.rtcDetected ? "detected" : "missing",
+                externalHardware.rtcClockRunning ? "running" : "stopped");
+}
 
 void drawTftUi();
 
@@ -766,6 +817,14 @@ void drawTftEggActionNative(const TftDragonFrame& frame) {
 }
 
 void beginTftUi() {
+  pinMode(FLASH_CS_PIN, OUTPUT);
+  digitalWrite(FLASH_CS_PIN, HIGH);
+  pinMode(TFT_CS_PIN, OUTPUT);
+  digitalWrite(TFT_CS_PIN, HIGH);
+  pinMode(TFT_BLK_PIN, OUTPUT);
+  digitalWrite(TFT_BLK_PIN, HIGH);
+
+  SPI.begin(TFT_SCLK_PIN, SPI_MISO_PIN, TFT_MOSI_PIN, -1);
   spiTft.init(TFT_WIDTH, TFT_HEIGHT, SPI_MODE3);
   // Rotation 0 conserve l'image retournee adaptee au montage sur breadboard
   // et l'offset natif Adafruit de 80 lignes valide sur cette orientation.
@@ -1100,12 +1159,28 @@ void startBootAnimation() {
 void enterDeepSleep() {
   saveCurrentPet();
   spiTft.enableDisplay(false);
+  digitalWrite(TFT_BLK_PIN, LOW);
+
+  const esp_err_t backlightHeld =
+      gpio_hold_en(static_cast<gpio_num_t>(TFT_BLK_PIN));
+  if (backlightHeld != ESP_OK) {
+    Serial.println("Backlight hold setup failed");
+    digitalWrite(TFT_BLK_PIN, HIGH);
+    spiTft.enableDisplay(true);
+    powerState = POWER_ACTIVE;
+    lastUserActivityAt = millis();
+    return;
+  }
+  gpio_deep_sleep_hold_en();
 
   const uint64_t wakePinMask = 1ULL << BTN_OK;
   const esp_err_t wakeupConfigured = esp_deep_sleep_enable_gpio_wakeup(
       wakePinMask, ESP_GPIO_WAKEUP_GPIO_LOW);
   if (wakeupConfigured != ESP_OK) {
     Serial.println("Deep sleep wake setup failed");
+    gpio_deep_sleep_hold_dis();
+    gpio_hold_dis(static_cast<gpio_num_t>(TFT_BLK_PIN));
+    digitalWrite(TFT_BLK_PIN, HIGH);
     spiTft.enableDisplay(true);
     powerState = POWER_ACTIVE;
     lastUserActivityAt = millis();
@@ -1503,11 +1578,14 @@ void handleButtons() {
 }
 
 void setup() {
+  gpio_deep_sleep_hold_dis();
+  gpio_hold_dis(static_cast<gpio_num_t>(TFT_BLK_PIN));
   Serial.begin(115200);
   const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
   wokeFromDeepSleep = wakeCause != ESP_SLEEP_WAKEUP_UNDEFINED;
   Serial.printf("Wake cause: %d\n", wakeCause);
   beginTftUi();
+  probeExternalHardware();
   pinMode(BTN_LEFT, INPUT_PULLUP);
   pinMode(BTN_OK, INPUT_PULLUP);
   pinMode(BTN_RIGHT, INPUT_PULLUP);
