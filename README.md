@@ -26,6 +26,7 @@ bibliothèques Adafruit déclarées dans `platformio.ini`.
 - `include/generated_tft_assets.h` : catalogue léger généré des assets.
 - `ASSET_STORAGE.md` : format W25Q64 et procédure de programmation USB.
 - `GRAPHICS_PLAN.md` : contrat graphique et couverture des écrans.
+- `ANIMATION_GUIDELINES.md` : création et validation de nouvelles frames.
 - `HARDWARE_EXPANSION_PLAN.md` : câblage complet validé du W25Q64, PCF8523 et BLK.
 - `HANDOFF.md` : contexte et roadmap.
 

@@ -107,6 +107,7 @@ complémentaires. Avec le pilote Adafruit en rotation 0, ne pas forcer l'offset
 - `src/external_flash.cpp` : lecture, effacement et programmation W25Q64 ;
 - `src/tft_asset_store.cpp` : validation, décodage et cache d'une frame ;
 - `ASSET_STORAGE.md` : format et procédure de mise à jour des assets ;
+- `ANIMATION_GUIDELINES.md` : méthode de création des frames intermédiaires ;
 - `HARDWARE_EXPANSION_PLAN.md` : câblage cible exhaustif depuis zéro ;
 - `platformio.ini` : firmware et environnements de diagnostic.
 
