@@ -22,25 +22,36 @@ struct StoredPet {
   uint8_t stubbornness;
   uint8_t lifeStage;
   uint8_t warmth;
-  uint32_t ageMs;
-  uint32_t stageStartedAgeMs;
+  uint64_t ageMs;
+  uint64_t stageStartedAgeMs;
+  uint32_t rtcUnixTime;
   uint32_t checksum;
 };
 
+uint32_t mixChecksum(uint32_t checksum, uint32_t value) {
+  return (checksum * 31U) ^ value;
+}
+
+uint32_t mixChecksum64(uint32_t checksum, uint64_t value) {
+  checksum = mixChecksum(checksum, static_cast<uint32_t>(value));
+  return mixChecksum(checksum, static_cast<uint32_t>(value >> 32));
+}
+
 uint32_t petChecksum(const StoredPet& pet) {
   uint32_t checksum = PET_SAVE_MAGIC ^ PET_SAVE_VERSION;
-  checksum = (checksum * 31U) ^ pet.hunger;
-  checksum = (checksum * 31U) ^ pet.happiness;
-  checksum = (checksum * 31U) ^ pet.health;
-  checksum = (checksum * 31U) ^ pet.cleanliness;
-  checksum = (checksum * 31U) ^ pet.fatigue;
-  checksum = (checksum * 31U) ^ pet.appetite;
-  checksum = (checksum * 31U) ^ pet.playfulness;
-  checksum = (checksum * 31U) ^ pet.stubbornness;
-  checksum = (checksum * 31U) ^ pet.lifeStage;
-  checksum = (checksum * 31U) ^ pet.warmth;
-  checksum = (checksum * 31U) ^ pet.ageMs;
-  checksum = (checksum * 31U) ^ pet.stageStartedAgeMs;
+  checksum = mixChecksum(checksum, pet.hunger);
+  checksum = mixChecksum(checksum, pet.happiness);
+  checksum = mixChecksum(checksum, pet.health);
+  checksum = mixChecksum(checksum, pet.cleanliness);
+  checksum = mixChecksum(checksum, pet.fatigue);
+  checksum = mixChecksum(checksum, pet.appetite);
+  checksum = mixChecksum(checksum, pet.playfulness);
+  checksum = mixChecksum(checksum, pet.stubbornness);
+  checksum = mixChecksum(checksum, pet.lifeStage);
+  checksum = mixChecksum(checksum, pet.warmth);
+  checksum = mixChecksum64(checksum, pet.ageMs);
+  checksum = mixChecksum64(checksum, pet.stageStartedAgeMs);
+  checksum = mixChecksum(checksum, pet.rtcUnixTime);
   return checksum;
 }
 
@@ -90,6 +101,7 @@ bool loadPetSave(PetSaveData& data) {
   data.warmth = stored.warmth;
   data.ageMs = stored.ageMs;
   data.stageStartedAgeMs = stored.stageStartedAgeMs;
+  data.rtcUnixTime = stored.rtcUnixTime;
   return true;
 }
 
@@ -111,6 +123,7 @@ bool savePetSave(const PetSaveData& data) {
   stored.warmth = data.warmth;
   stored.ageMs = data.ageMs;
   stored.stageStartedAgeMs = data.stageStartedAgeMs;
+  stored.rtcUnixTime = data.rtcUnixTime;
   stored.checksum = petChecksum(stored);
 
   Preferences preferences;

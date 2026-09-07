@@ -11,10 +11,12 @@
 #include "external_flash.h"
 #include "generated_tft_assets.h"
 #include "persistence.h"
+#include "rtc_clock.h"
 #include "tft_asset_store.h"
 
 Adafruit_ST7789 spiTft(&SPI, TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
 W25Q64Flash externalFlash;
+RtcClock rtcClock;
 TftAssetStore tftAssets;
 bool tftAssetsReady = false;
 
@@ -25,19 +27,23 @@ struct ExternalHardwareStatus {
   uint8_t flashCapacity = 0;
   bool rtcDetected = false;
   bool rtcClockRunning = false;
+  bool rtcAdjusted = false;
+  bool rtcValid = false;
 };
 
 ExternalHardwareStatus externalHardware;
+RtcDateTime rtcBootDateTime;
+bool rtcBootTimeValid = false;
 
 void probeExternalHardware() {
   Wire.begin(RTC_SDA_PIN, RTC_SCL_PIN);
-  Wire.beginTransmission(RTC_ADDRESS);
-  Wire.write(0x03); // Registre des secondes, lecture du drapeau oscillateur.
-  if (Wire.endTransmission(false) == 0 &&
-      Wire.requestFrom(RTC_ADDRESS, static_cast<uint8_t>(1)) == 1) {
-    externalHardware.rtcDetected = true;
-    externalHardware.rtcClockRunning = (Wire.read() & 0x80) == 0;
-  }
+  rtcClock.begin(Wire);
+  const RtcClockStatus& rtcStatus = rtcClock.status();
+  externalHardware.rtcDetected = rtcStatus.detected;
+  externalHardware.rtcClockRunning = rtcStatus.running;
+  externalHardware.rtcAdjusted = rtcStatus.adjusted;
+  externalHardware.rtcValid = rtcStatus.valid;
+  rtcBootTimeValid = rtcClock.read(rtcBootDateTime);
 
   const W25QJedecId jedec = externalFlash.readJedecId();
   externalHardware.flashManufacturer = jedec.manufacturer;
@@ -57,9 +63,18 @@ void probeExternalHardware() {
                 externalHardware.flashMemoryType,
                 externalHardware.flashCapacity,
                 externalHardware.flashDetected ? "detected" : "missing");
-  Serial.printf("PCF8523: %s, oscillator %s\n",
+  Serial.printf("PCF8523: %s, oscillator %s, time %s%s\n",
                 externalHardware.rtcDetected ? "detected" : "missing",
-                externalHardware.rtcClockRunning ? "running" : "stopped");
+                externalHardware.rtcClockRunning ? "running" : "stopped",
+                rtcBootTimeValid ? "valid" : "invalid",
+                externalHardware.rtcAdjusted ? " (set from firmware build)" : "");
+  if (rtcBootTimeValid) {
+    Serial.printf("RTC time: %04u-%02u-%02u %02u:%02u:%02u (%lu)\n",
+                  rtcBootDateTime.year, rtcBootDateTime.month,
+                  rtcBootDateTime.day, rtcBootDateTime.hour,
+                  rtcBootDateTime.minute, rtcBootDateTime.second,
+                  static_cast<unsigned long>(rtcBootDateTime.unixTime));
+  }
 }
 
 void drawTftUi();
@@ -104,11 +119,15 @@ struct Pet {
   uint8_t stubbornness = 1;
   LifeStage lifeStage = STAGE_EGG;
   uint8_t warmth = 0;
-  unsigned long birthTime = 0;
-  unsigned long stageStartedAgeMs = 0;
+  uint64_t stageStartedAgeMs = 0;
 };
 Pet pet;
 bool petRestored = false;
+uint64_t petAgeAtBootMs = 0;
+unsigned long petAgeBootMillis = 0;
+uint32_t restoredRtcElapsedSeconds = 0;
+esp_sleep_wakeup_cause_t bootWakeCause = ESP_SLEEP_WAKEUP_UNDEFINED;
+unsigned long lastRtcDiagnosticAt = 0;
 
 enum ScreenState {
   SCREEN_MAIN,
@@ -202,6 +221,8 @@ constexpr unsigned long HAPPY_INTERVAL = 15000;
 constexpr unsigned long HEALTH_INTERVAL = 12000;
 constexpr unsigned long CLEANLINESS_INTERVAL = 20000;
 constexpr unsigned long FATIGUE_INTERVAL = 15000;
+constexpr uint32_t MAX_RTC_ELAPSED_SECONDS = 366UL * 24UL * 60UL * 60UL;
+constexpr uint32_t MAX_OFFLINE_SIMULATION_SECONDS = 24UL * 60UL * 60UL;
 
 unsigned long lastAnimTick = 0;
 unsigned long lastMoveTick = 0;
@@ -236,15 +257,16 @@ uint8_t clampTrait(uint8_t value) {
   return value > 2 ? 2 : value;
 }
 
-unsigned long petAgeMinutes() {
-  return (millis() - pet.birthTime) / 60000;
+uint64_t petAgeMs() {
+  return petAgeAtBootMs +
+         static_cast<uint32_t>(millis() - petAgeBootMillis);
 }
 
-unsigned long petAgeMs() {
-  return millis() - pet.birthTime;
+uint64_t petAgeMinutes() {
+  return petAgeMs() / 60000ULL;
 }
 
-unsigned long stageAgeMs() {
+uint64_t stageAgeMs() {
   return petAgeMs() - pet.stageStartedAgeMs;
 }
 
@@ -709,9 +731,19 @@ void drawTftStatusNative() {
   spiTft.setTextColor(TFT_HOME_CREAM, TFT_HOME_NAVY);
   spiTft.setCursor(12, 221);
   spiTft.print(lifeStageLabel());
+  RtcDateTime dateTime;
+  spiTft.setCursor(82, 221);
+  if (rtcClock.read(dateTime)) {
+    char timeLabel[6];
+    snprintf(timeLabel, sizeof(timeLabel), "%02u:%02u",
+             dateTime.hour, dateTime.minute);
+    spiTft.print(timeLabel);
+  } else {
+    spiTft.print("--:--");
+  }
   spiTft.setCursor(150, 221);
   spiTft.print("AGE ");
-  spiTft.print(petAgeMinutes());
+  spiTft.print(static_cast<unsigned long long>(petAgeMinutes()));
   spiTft.print(" MIN");
 }
 
@@ -1029,6 +1061,8 @@ void drawTftUi() {
 }
 
 bool saveCurrentPet() {
+  uint32_t rtcUnixTime = 0;
+  rtcClock.readUnixTime(rtcUnixTime);
   const PetSaveData data{
       static_cast<uint8_t>(pet.hunger),
       static_cast<uint8_t>(pet.happiness),
@@ -1042,6 +1076,7 @@ bool saveCurrentPet() {
       pet.warmth,
       petAgeMs(),
       pet.stageStartedAgeMs,
+      rtcUnixTime,
   };
   if (!savePetSave(data)) {
     Serial.println("Pet save failed");
@@ -1416,15 +1451,70 @@ void letPetRest() {
 void updateLifeCycle() {
   if (pet.lifeStage == STAGE_BABY && stageAgeMs() >= BABY_STAGE_DURATION) {
     pet.lifeStage = STAGE_YOUNG;
-    pet.stageStartedAgeMs = petAgeMs();
+    pet.stageStartedAgeMs += BABY_STAGE_DURATION;
     markPetDirty();
     Serial.println("Life stage: young dragon");
-  } else if (pet.lifeStage == STAGE_YOUNG && stageAgeMs() >= YOUNG_STAGE_DURATION) {
+  }
+  if (pet.lifeStage == STAGE_YOUNG && stageAgeMs() >= YOUNG_STAGE_DURATION) {
     pet.lifeStage = STAGE_ADULT;
-    pet.stageStartedAgeMs = petAgeMs();
+    pet.stageStartedAgeMs += YOUNG_STAGE_DURATION;
     markPetDirty();
     Serial.println("Life stage: adult dragon");
   }
+}
+
+void applyOfflineSimulation(uint32_t elapsedSeconds) {
+  const uint32_t simulatedSeconds =
+      min(elapsedSeconds, MAX_OFFLINE_SIMULATION_SECONDS);
+  const uint32_t elapsedMs = simulatedSeconds * 1000UL;
+  if (elapsedMs == 0) return;
+
+  uint32_t nextHunger = HUNGER_INTERVAL;
+  uint32_t nextHappy = HAPPY_INTERVAL;
+  uint32_t nextCleanliness = CLEANLINESS_INTERVAL;
+  uint32_t nextFatigue = FATIGUE_INTERVAL;
+  uint32_t nextHealth = HEALTH_INTERVAL;
+
+  while (true) {
+    const uint32_t nextEvent =
+        min(min(nextHunger, nextHappy),
+            min(min(nextCleanliness, nextFatigue), nextHealth));
+    if (nextEvent > elapsedMs) break;
+
+    // Preserve the same ordering as the live simulation when events coincide.
+    if (nextHunger == nextEvent) {
+      pet.hunger = clampStat(pet.hunger - 1);
+      nextHunger += HUNGER_INTERVAL;
+    }
+    if (nextHappy == nextEvent) {
+      pet.happiness = clampStat(pet.happiness - 1);
+      if (pet.fatigue >= 80) {
+        pet.happiness = clampStat(pet.happiness - 1);
+      }
+      nextHappy += HAPPY_INTERVAL;
+    }
+    if (nextCleanliness == nextEvent) {
+      pet.cleanliness = clampStat(pet.cleanliness - 1);
+      nextCleanliness += CLEANLINESS_INTERVAL;
+    }
+    if (nextFatigue == nextEvent) {
+      pet.fatigue = clampStat(pet.fatigue + 1);
+      nextFatigue += FATIGUE_INTERVAL;
+    }
+    if (nextHealth == nextEvent) {
+      if (pet.hunger < 25) pet.health--;
+      if (pet.happiness < 20) pet.health--;
+      if (pet.cleanliness < 25) pet.health--;
+      if (pet.fatigue >= 80) pet.health--;
+      pet.health = clampStat(pet.health);
+      nextHealth += HEALTH_INTERVAL;
+    }
+  }
+
+  Serial.printf("Offline simulation: %lu s applied%s\n",
+                static_cast<unsigned long>(simulatedSeconds),
+                elapsedSeconds > simulatedSeconds ? " (24 h cap)" : "");
+  markPetDirty();
 }
 
 void updateSimulation() {
@@ -1466,6 +1556,27 @@ void updateSimulation() {
     Serial.print("Health: "); Serial.println(pet.health);
   }
   if (petChanged) markPetDirty();
+}
+
+void updateRtcDiagnostics() {
+  if (RTC_DIAGNOSTIC_REPORT_INTERVAL == 0) return;
+  const unsigned long now = millis();
+  if (now - lastRtcDiagnosticAt < RTC_DIAGNOSTIC_REPORT_INTERVAL) return;
+  lastRtcDiagnosticAt = now;
+
+  RtcDateTime dateTime;
+  const bool valid = rtcClock.read(dateTime);
+  Serial.printf("RTC SUMMARY: wake=%d elapsed=%lu s age=%llu ms time=",
+                static_cast<int>(bootWakeCause),
+                static_cast<unsigned long>(restoredRtcElapsedSeconds),
+                static_cast<unsigned long long>(petAgeMs()));
+  if (valid) {
+    Serial.printf("%04u-%02u-%02u %02u:%02u:%02u\n",
+                  dateTime.year, dateTime.month, dateTime.day,
+                  dateTime.hour, dateTime.minute, dateTime.second);
+  } else {
+    Serial.println("INVALID");
+  }
 }
 
 void updateCreatureAnimation() {
@@ -1607,9 +1718,10 @@ void setup() {
   gpio_deep_sleep_hold_dis();
   gpio_hold_dis(static_cast<gpio_num_t>(TFT_BLK_PIN));
   Serial.begin(115200);
-  const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
-  wokeFromDeepSleep = wakeCause != ESP_SLEEP_WAKEUP_UNDEFINED;
-  Serial.printf("Wake cause: %d\n", wakeCause);
+  if (STARTUP_SERIAL_DELAY > 0) delay(STARTUP_SERIAL_DELAY);
+  bootWakeCause = esp_sleep_get_wakeup_cause();
+  wokeFromDeepSleep = bootWakeCause != ESP_SLEEP_WAKEUP_UNDEFINED;
+  Serial.printf("Wake cause: %d\n", bootWakeCause);
   beginTftUi();
   probeExternalHardware();
   tftAssetsReady = tftAssets.begin(externalFlash);
@@ -1622,6 +1734,7 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
 
   const unsigned long now = millis();
+  petAgeBootMillis = now;
   for (Button* button : {&leftButton, &okButton, &rightButton}) {
     button->stableState = digitalRead(button->pin);
     button->lastReading = button->stableState;
@@ -1641,11 +1754,35 @@ void setup() {
     pet.stubbornness = clampTrait(restoredData.stubbornness);
     pet.lifeStage = static_cast<LifeStage>(restoredData.lifeStage);
     pet.warmth = restoredData.warmth;
-    pet.birthTime = now - restoredData.ageMs;
+    petAgeAtBootMs = restoredData.ageMs;
     pet.stageStartedAgeMs = restoredData.stageStartedAgeMs;
-    Serial.println("Pet restored");
+    if (rtcBootTimeValid && !externalHardware.rtcAdjusted &&
+        restoredData.rtcUnixTime != 0) {
+      if (rtcBootDateTime.unixTime >= restoredData.rtcUnixTime) {
+        const uint32_t elapsed =
+            rtcBootDateTime.unixTime - restoredData.rtcUnixTime;
+        if (elapsed <= MAX_RTC_ELAPSED_SECONDS) {
+          restoredRtcElapsedSeconds = elapsed;
+          petAgeAtBootMs += static_cast<uint64_t>(elapsed) * 1000ULL;
+        } else {
+          Serial.printf("RTC elapsed rejected: %lu s exceeds safety limit\n",
+                        static_cast<unsigned long>(elapsed));
+        }
+      } else {
+        Serial.println("RTC elapsed rejected: clock moved backwards");
+      }
+    } else if (externalHardware.rtcAdjusted) {
+      Serial.println("RTC elapsed skipped after clock adjustment");
+    } else {
+      Serial.println("RTC elapsed unavailable; active-time fallback used");
+    }
+    Serial.printf("Pet restored: age=%llu ms, RTC elapsed=%lu s\n",
+                  static_cast<unsigned long long>(petAgeAtBootMs),
+                  static_cast<unsigned long>(restoredRtcElapsedSeconds));
+    applyOfflineSimulation(restoredRtcElapsedSeconds);
+    updateLifeCycle();
   } else {
-    pet.birthTime = now;
+    petAgeAtBootMs = 0;
     pet.appetite = esp_random() % 3;
     pet.playfulness = esp_random() % 3;
     pet.stubbornness = esp_random() % 3;
@@ -1664,8 +1801,11 @@ void setup() {
   lastBlinkTick = now;
   lastPetSaveAt = now;
   lastUserActivityAt = now;
+  lastRtcDiagnosticAt = now;
 
-  if (!petRestored) saveCurrentPet();
+  // Save once after boot to establish a fresh RTC anchor and avoid replaying
+  // already-applied offline time after an immediate reset.
+  saveCurrentPet();
 
   startBootAnimation();
   Serial.println("Dragon Tamagotchi started");
@@ -1684,6 +1824,7 @@ void loop() {
     return;
   }
   updateSimulation();
+  updateRtcDiagnostics();
   updateLifeCycle();
   updateScreenState();
   updateCreatureAnimation();

@@ -3,10 +3,10 @@
 ## État validé
 
 Ce document décrit le montage complet, comme pour un câblage réalisé depuis
-zéro. Le câblage et le firmware `v0.6` adapté ont été validés ensemble sur le
-prototype réel le 6 septembre 2026 : TFT sans scintillement, boutons, buzzer,
-RTC détecté, lecture JEDEC de la mémoire et deep sleep avec extinction du
-rétroéclairage.
+zéro. Le câblage et le firmware `v0.7` ont été validés ensemble sur le prototype
+réel les 6 et 7 septembre 2026 : TFT sans scintillement, boutons, buzzer, RTC
+avec conservation sur pile, lecture JEDEC de la mémoire et deep sleep avec
+extinction du rétroéclairage.
 
 Ne réaliser ou modifier les connexions que lorsque l'USB et toute autre
 alimentation sont débranchés.
@@ -125,11 +125,12 @@ Toutes les connexions nécessaires sont les suivantes :
 | `SQW` | aucune connexion pour la première intégration |
 
 Le breakout Adafruit possède déjà des pull-ups de 10 kΩ sur SDA et SCL : ne
-pas en ajouter. L'adresse I2C fixe est `0x68`. Le prototype a été validé sans
-pile : le composant répond, mais son oscillateur est arrêté et l'heure ne peut
-pas survivre à une coupure. Installer une CR1220 avant d'exiger la conservation
-de l'heure. Le firmware courant détecte le RTC en lecture seule et ne règle pas
-encore l'heure.
+pas en ajouter. L'adresse I2C fixe est `0x68`. La pile CR1220 est installée sur
+le prototype. Le firmware v0.7 initialise l'heure à partir de la date de
+compilation uniquement si le RTC est neuf, a perdu son alimentation, est
+illisible ou contient une date manifestement trop ancienne. Il préserve ensuite
+l'heure valide et l'utilise pour mesurer le temps passé en deep sleep ou hors
+tension.
 
 ## Boutons
 
@@ -185,7 +186,7 @@ Ce câblage reprend le buzzer déjà validé sur le prototype.
 - ST7789 initialisé avec `CS = 9` et `RST = -1` ;
 - transactions indépendantes sur le bus SPI partagé ;
 - W25Q64 détectée en lecture seule avec l'identifiant JEDEC `EF 40 17` ;
-- PCF8523 détecté à `0x68`, oscillateur arrêté en l'absence de pile ;
+- PCF8523 géré à `0x68` via RTClib, oscillateur démarré et heure contrôlée ;
 - BLK maintenu à LOW pendant le deep sleep, extinction réelle validée ;
 - aucun système de fichiers ; les secteurs initiaux contiennent désormais
   l'image RLE des sprites, programmée et vérifiée octet par octet.
@@ -196,7 +197,7 @@ Ce câblage reprend le buzzer déjà validé sur le prototype.
 - reset fiable du TFT après plusieurs mises sous tension ;
 - TFT identique à la version validée, sans conflit SPI ni clignotement ;
 - identifiant JEDEC stable sur plusieurs redémarrages ;
-- date PCF8523 conservée après coupure grâce à la CR1220 : non testée, pile absente ;
+- date PCF8523 conservée après coupure grâce à la CR1220 : validée sur la v0.7 ;
 - BLK complètement éteint pendant le deep sleep ;
 - boutons, buzzer et réveil GPIO3 inchangés.
 

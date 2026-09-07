@@ -3,7 +3,7 @@
 Prototype de Tamagotchi DIY basé sur ESP32-C3, TFT IPS ZJY154S0800TG01
 1,54 pouce (ST7789, 240×240), trois boutons et buzzer passif.
 
-## V0.6 : firmware actuel
+## V0.7 : firmware actuel
 
 Le projet PlatformIO est compilable pour `esp32-c3-devkitm-1`, l'équivalent
 PlatformIO retenu pour la configuration Arduino validée `ESP32C3 Dev Module`.
@@ -62,8 +62,9 @@ pio run -e asset-storage-test
 ```
 
 Ces diagnostics utilisent tous le pinout central de `include/config.h`.
-`hardware-expansion-test` contrôle le câblage commun, détecte le PCF8523 et lit
-l'identifiant JEDEC sans écrire dans la mémoire. `deep-sleep-test` vérifie
+`hardware-expansion-test` contrôle le câblage commun, initialise le PCF8523 si
+nécessaire, affiche son heure avec les secondes et lit l'identifiant JEDEC sans
+écrire dans la mémoire SPI. `deep-sleep-test` vérifie
 l'extinction de BLK et le réveil. `tamagotchi-30s-test` exécute l'application
 complète avec une veille ramenée à 30 secondes ; la cible normale reste à
 10 minutes.
@@ -104,8 +105,12 @@ droit a été déplacé sur GPIO8 pour éviter que la LED bleue active à LOW du
 Super Mini reste allumée pendant le deep sleep. `SQW` du PCF8523 est déconnecté.
 
 La W25Q64 répond avec l'identifiant JEDEC `EF 40 17`. Le PCF8523 répond à
-`0x68` ; sans pile CR1220, son oscillateur reste arrêté. Le firmware réalise
-ces détections au démarrage sans écrire dans les périphériques externes.
+`0x68` et sa pile CR1220 est installée. Au premier démarrage, après une perte
+d'alimentation RTC ou si l'heure est manifestement antérieure au firmware, le
+firmware règle l'horloge sur la date de compilation puis démarre l'oscillateur.
+Une heure valide est ensuite préservée entre les démarrages.
+La conservation par CR1220 a été validée après une coupure USB complète : le
+diagnostic a retrouvé `TIME PRESERVED` et une heure continuant à avancer.
 
 La barre inférieure du HOME expose six icônes : FOOD, PLAY, MEDICINE, CLEAN,
 SLEEP et STATUS. L'icône sélectionnée est mise en évidence et le nom complet de
@@ -120,18 +125,21 @@ fatigue, la faim, la tristesse et la maladie.
 - `MD` / MEDICINE : soigne lorsque les HP sont bas.
 - `CL` / CLEAN : restaure l'hygiène ; une hygiène critique pénalise les HP.
 - `SL` / SLEEP : demande une sieste. Un dragon têtu peut répondre `ONE MORE!`.
-- `ST` / STATUS : affiche Food, Happy, HP, Clean, Rest, progression et âge.
+- `ST` / STATUS : affiche Food, Happy, HP, Clean, Rest, progression, heure RTC
+  et âge.
 
 À partir de 80 de fatigue, le dragon perd un point de bonheur à chaque cycle
 de 15 s et un HP à chaque cycle de santé de 12 s, jusqu'à ce qu'il dorme.
 
 ## Persistance
 
-Les stats, l'âge, l'hygiène, la fatigue, le stade de vie et les trois traits de personnalité
-sont sauvegardés dans la mémoire NVS interne de l'ESP32. Le schéma NVS `6`
-correspond exactement au firmware `v0.6` : une sauvegarde d'une autre version
-est volontairement ignorée et un nouveau dragon est créé. Elle est regroupée
-après les actions et actualisée périodiquement pour limiter l'usure de la flash.
+Les stats, l'âge, l'hygiène, la fatigue, le stade de vie et les trois traits de
+personnalité sont sauvegardés dans la mémoire NVS interne de l'ESP32. Le schéma
+NVS `7` correspond exactement au firmware `v0.7` : une sauvegarde d'une autre
+version est volontairement ignorée et un nouveau dragon est créé. Le format
+stocke des âges 64 bits et l'heure Unix du PCF8523 servant d'ancre. Les écritures
+sont regroupées après les actions et actualisées périodiquement pour limiter
+l'usure de la flash.
 
 ## Veille profonde
 
@@ -141,6 +149,14 @@ bouton OK (GPIO3) réveille la carte. GPIO10 est maintenu à LOW pendant la veil
 ce qui éteint complètement le rétroéclairage. Ce cycle a été validé sur le
 prototype. L'environnement `tamagotchi-30s-test` permet de le retester avec
 une temporisation de 30 secondes sans modifier les 10 minutes de la cible normale.
+Le test v0.7 a confirmé sur la carte un réveil GPIO et 32 secondes de deep sleep
+réappliquées à l'âge et aux jauges.
+
+Au réveil ou après une coupure, l'écart RTC depuis la dernière sauvegarde est
+ajouté à l'âge et rejoué dans la simulation. L'âge conserve tout écart valide ;
+la dégradation des jauges est plafonnée à 24 heures par démarrage. Si le RTC est
+absent, invalide, vient d'être réglé ou recule, le firmware ignore cet écart et
+continue avec le temps actif sans altérer la sauvegarde.
 
 ## Cycle de vie
 

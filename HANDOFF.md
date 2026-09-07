@@ -6,7 +6,7 @@ Le firmware actif est un projet PlatformIO Arduino C++ pour ESP32-C3. Le seul
 affichage géré est désormais le TFT IPS ZJY154S0800TG01 240×240. La chaîne
 graphique historique 1-bit et la dépendance SSD1306 ont été retirées.
 
-- firmware : `v0.6` ; schéma NVS : `6` ;
+- firmware : `v0.7` ; schéma NVS : `7` ;
 - veille automatique après 10 minutes sans interaction ;
 - HOME, navigation partielle et jauges à cinq segments validés visuellement
   après la migration finale ;
@@ -16,14 +16,21 @@ graphique historique 1-bit et la dépendance SSD1306 ont été retirées.
 - compilation et téléversement de la migration complète validés ; les 33 assets
   couleur et leurs animations normalisées ont été validés sur le TFT réel ;
 - câblage final TFT/W25Q64/PCF8523 et extinction BLK en deep sleep validés.
+- support RTC implémenté : initialisation conditionnelle, âge hors tension,
+  rattrapage des stats plafonné à 24 h et heure visible dans STATUS ; RTC et
+  rattrapage deep sleep validés sur la carte réelle.
 
 Les pixels des sprites sont stockés sur la W25Q64 dans un format RLE. L'image,
 le diagnostic des 33 CRC, leur défilement et toutes les animations dans
 l'application normale ont été validés sur le prototype réel.
 
-Instantané au 6 septembre 2026 : le câblage d'extension et son support logiciel
-ont été validés sur le prototype réel. Les changements correspondants sont
-encore dans le worktree et ne doivent être commités qu'après instruction.
+Instantané au 7 septembre 2026 : la v0.7 RTC est téléversée sur le prototype en
+configuration normale avec veille à 10 minutes. Le PCF8523 a été initialisé une
+fois depuis l'heure de compilation, puis préservé au redémarrage. Le diagnostic
+a observé l'oscillateur actif, les secondes croissantes et un réveil GPIO avec
+32 secondes réappliquées à l'âge et aux stats. Après coupure USB complète, le
+diagnostic a retrouvé l'heure préservée à `22:38:27`, puis `TICK OK` jusqu'à
+`22:38:40`. Le firmware normal à 10 minutes a ensuite été restauré.
 
 ## Matériel
 
@@ -65,7 +72,7 @@ encore dans le worktree et ne doivent être commités qu'après instruction.
 
 Le TFT et la W25Q64 partagent SCLK GPIO4 et MOSI GPIO6. La flash utilise
 GPIO2 comme CS. Son identifiant JEDEC lu sans écriture est `EF 40 17`.
-Le PCF8523 répond à `0x68` ; sans CR1220, son oscillateur est arrêté.
+Le PCF8523 répond à `0x68` et la pile CR1220 est désormais installée.
 
 ## Paramètres ST7789 validés
 
@@ -93,12 +100,14 @@ complémentaires. Avec le pilote Adafruit en rotation 0, ne pas forcer l'offset
 - framework Arduino ESP32 ;
 - Adafruit GFX Library ;
 - Adafruit ST7735 and ST7789 Library ;
+- Adafruit RTClib ;
 - `SPI` et `Preferences` fournis par le framework.
 
 ### Fichiers principaux
 
 - `src/main.cpp` : simulation, écrans TFT, boutons et audio ;
 - `src/persistence.cpp` : sérialisation NVS ;
+- `src/rtc_clock.cpp` : initialisation et lecture robuste du PCF8523 ;
 - `include/config.h` : pinout, versions et temporisations ;
 - `assets/tft/*.bmp` : source graphique couleur unique ;
 - `tools/generate_tft_assets.py` : BMP vers image W25Q64 RLE RGB565 ;
@@ -126,8 +135,8 @@ framebuffer secondaire, de conversion à l'exécution ni de rendu hybride.
 Compilation applicative avec les pixels des 33 sprites retirés de la flash
 interne et un cache RAM RGB565 de 25 088 octets :
 
-- flash : 26,8 %, soit 351 116 octets sur 1 310 720 ;
-- RAM statique : 12,5 %, soit 40 840 octets sur 327 680.
+- flash : 27,1 %, soit 355 234 octets sur 1 310 720 ;
+- RAM statique : 12,5 %, soit 40 888 octets sur 327 680.
 
 Il n'y a pas de framebuffer 240×240 permanent, qui demanderait 115 200 octets.
 
@@ -141,8 +150,14 @@ le font éclore. Il devient jeune après 5 minutes puis adulte 15 minutes plus
 tard. Ces durées sont volontairement courtes pour le prototype.
 
 Les cinq statistiques restent bornées à 0..100. Les traits d'appétit, de jeu
-et d'entêtement sont persistés dans NVS avec le stade, la chaleur et l'âge.
+et d'entêtement sont persistés dans NVS avec le stade, la chaleur, l'âge 64 bits
+et l'ancre Unix du RTC.
 Maintenir gauche et droite cinq secondes efface la sauvegarde.
+
+Le temps écoulé pendant une veille ou une coupure est ajouté à l'âge au prochain
+démarrage. Les mêmes règles de simulation sont rejouées chronologiquement, avec
+un plafond de 24 h pour les jauges seulement. Un écart RTC supérieur à 366 jours,
+une horloge reculée ou une horloge qui vient d'être réinitialisée est rejeté.
 
 ## Deep sleep
 
@@ -155,7 +170,12 @@ Maintenir gauche et droite cinq secondes efface la sauvegarde.
 
 Le cycle complet a été validé sur le prototype. Une cible
 `tamagotchi-30s-test` conserve l'application complète avec un délai de
-30 secondes pour les essais ; la cible normale conserve 10 minutes.
+30 secondes pour les essais ; elle attend aussi 10 secondes avant le journal
+de démarrage afin que le moniteur USB récupère les preuves RTC. La cible normale
+conserve 10 minutes et ne reçoit pas ce délai de diagnostic. La cible de test
+répète en plus toutes les 5 secondes un résumé `RTC SUMMARY` avec cause de
+réveil, temps hors ligne, âge et heure, afin que la preuve reste récupérable
+même si Linux renumérote le port USB après un deep sleep.
 
 ## Extension matérielle validée
 
@@ -173,8 +193,10 @@ Le câblage exhaustif est spécifié dans `HARDWARE_EXPANSION_PLAN.md` :
 État au 6 septembre 2026 : affichage, boutons, buzzer, RTC, lecture JEDEC,
 absence de scintillement, extinction BLK et réveil OK validés sur la carte. La
 flash externe contient maintenant l'image RLE des sprites dans ses premiers
-214 128 octets. Aucun système de fichiers n'est encore choisi. La conservation
-RTC reste à tester après ajout d'une pile CR1220.
+214 128 octets. Aucun système de fichiers n'est encore choisi. La pile CR1220
+est installée. Le rattrapage après deep sleep, la conservation de l'heure après
+coupure USB complète et l'affichage de l'heure dans STATUS sont validés sur le
+prototype réel.
 
 ## Assets graphiques
 
@@ -211,7 +233,7 @@ fissures et éclosion.
 | `raw-st7789-test` | pilote brut bit-bang mode 3 |
 | `hardware-st7789-test` | SPI matériel brut |
 | `st7789-test` | Adafruit et couleurs |
-| `hardware-expansion-test` | câblage, RTC et JEDEC en lecture seule |
+| `hardware-expansion-test` | câblage, RTC horodaté et JEDEC SPI en lecture seule |
 | `deep-sleep-test` | extinction BLK et réveil OK après 5 secondes |
 | `tamagotchi-30s-test` | application complète, veille après 30 secondes |
 | `asset-flash-programmer` | écrit et vérifie l'image RLE sur la W25Q64 |
@@ -222,16 +244,20 @@ exclus du firmware applicatif normal.
 
 ## Validation de clôture
 
-| Contrôle | État au 6 septembre 2026 |
+| Contrôle | État au 7 septembre 2026 |
 |---|---|
 | Génération RLE des 33 BMP | validée, 214 128 octets, round-trip vérifié |
-| Compilation du firmware normal externe | validée, flash 26,8 %, RAM 12,5 % |
-| Compilation des dix environnements PlatformIO | validée après la validation matérielle finale |
+| Compilation du firmware normal externe | validée, 355 234 octets flash et 40 888 octets RAM |
+| Compilation des dix environnements PlatformIO | validée avec la v0.7 RTC |
 | Téléversement sur `/dev/ttyACM0` et vérification du hash | validé |
 | HOME, jauges à cinq segments et navigation sans clignotement | validés sur le TFT |
 | 33 assets, couleurs, échelle, ancrages et animations | validés par l'utilisateur sur le TFT |
 | `NO MEDICINE`, taille et yeux canoniques | validé dans le lot graphique |
-| PCF8523 à `0x68`, sans pile et oscillateur arrêté | validé sur le matériel |
+| PCF8523 à `0x68`, oscillateur et secondes | validés sur le matériel, `TICK OK` |
+| Compilation v0.7 normale, veille 30 s et diagnostic RTC | validée statiquement et téléversée |
+| Réveil GPIO et rattrapage après deep sleep | validés : `wake=7`, `elapsed=32 s` |
+| Conservation RTC après coupure USB complète | validée, `TIME PRESERVED` et `TICK OK` |
+| Heure dans STATUS | validée visuellement par l'utilisateur |
 | W25Q64 JEDEC `EF 40 17` | validée sur le matériel |
 | TFT, boutons et buzzer avec le câblage final | validés sur le matériel |
 | `git diff --check` | validé |

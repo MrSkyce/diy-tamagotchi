@@ -13,8 +13,9 @@ struct PetSaveData {
   uint8_t stubbornness;
   uint8_t lifeStage;
   uint8_t warmth;
-  unsigned long ageMs;
-  unsigned long stageStartedAgeMs;
+  uint64_t ageMs;
+  uint64_t stageStartedAgeMs;
+  uint32_t rtcUnixTime;
 };
 
 bool loadPetSave(PetSaveData& data);

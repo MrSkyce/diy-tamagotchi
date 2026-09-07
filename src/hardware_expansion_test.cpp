@@ -5,13 +5,21 @@
 #include <Wire.h>
 
 #include "config.h"
+#include "rtc_clock.h"
 
 namespace {
 
 Adafruit_ST7789 tft(&SPI, TFT_CS_PIN, TFT_DC_PIN, -1);
+RtcClock rtcClock;
 
 bool rtcDetected = false;
 bool rtcClockRunning = false;
+bool rtcAdjusted = false;
+bool rtcTimeValid = false;
+RtcDateTime rtcDateTime;
+uint32_t rtcFirstUnixTime = 0;
+unsigned long rtcFirstReadAt = 0;
+bool rtcTickObserved = false;
 uint8_t flashManufacturer = 0;
 uint8_t flashMemoryType = 0;
 uint8_t flashCapacity = 0;
@@ -32,15 +40,25 @@ void scanI2cBus() {
   }
 }
 
-bool readRtcClockStatus() {
-  Wire.beginTransmission(RTC_ADDRESS);
-  Wire.write(0x03); // Registre des secondes du PCF8523.
-  if (Wire.endTransmission(false) != 0) return false;
-  if (Wire.requestFrom(RTC_ADDRESS, static_cast<uint8_t>(1)) != 1) return false;
+void beginRtc() {
+  rtcClock.begin(Wire);
+  const RtcClockStatus& status = rtcClock.status();
+  rtcDetected = status.detected;
+  rtcClockRunning = status.running;
+  rtcAdjusted = status.adjusted;
+  rtcTimeValid = rtcClock.read(rtcDateTime);
+  if (rtcTimeValid) rtcFirstUnixTime = rtcDateTime.unixTime;
+  rtcFirstReadAt = millis();
+}
 
-  // Le bit OS est à 1 si l'oscillateur a été arrêté.
-  rtcClockRunning = (Wire.read() & 0x80) == 0;
-  return true;
+void refreshRtc() {
+  rtcTimeValid = rtcClock.read(rtcDateTime);
+  const RtcClockStatus& status = rtcClock.status();
+  rtcDetected = status.detected;
+  rtcClockRunning = status.running;
+  if (rtcTimeValid && rtcDateTime.unixTime > rtcFirstUnixTime) {
+    rtcTickObserved = true;
+  }
 }
 
 void readFlashJedecId() {
@@ -77,6 +95,16 @@ void printSerialReport() {
                                                 : "NOT DETECTED");
   if (rtcDetected) {
     Serial.printf("RTC OSC : %s\n", rtcClockRunning ? "RUNNING" : "STOPPED");
+    Serial.printf("RTC SET : %s\n", rtcAdjusted ? "BUILD TIME APPLIED"
+                                                 : "TIME PRESERVED");
+    if (rtcTimeValid) {
+      Serial.printf("RTC TIME: %04u-%02u-%02u %02u:%02u:%02u (%lu)\n",
+                    rtcDateTime.year, rtcDateTime.month, rtcDateTime.day,
+                    rtcDateTime.hour, rtcDateTime.minute, rtcDateTime.second,
+                    static_cast<unsigned long>(rtcDateTime.unixTime));
+    }
+    Serial.printf("RTC TICK: %s\n", rtcTickObserved ? "OK"
+                                                   : "WAITING");
   }
   Serial.printf("I2C SCAN: %u device(s)", detectedI2cCount);
   for (uint8_t index = 0; index < detectedI2cCount; ++index) {
@@ -100,6 +128,32 @@ void drawCentered(const char* text, int16_t y, uint8_t size,
   tft.setTextColor(color);
   tft.setCursor((TFT_WIDTH - width) / 2, y);
   tft.print(text);
+}
+
+void drawRtcReport() {
+  // Only redraw the changing RTC rows; a full-screen refresh every second
+  // would make the diagnostic itself introduce visible flicker.
+  tft.fillRect(17, 165, TFT_WIDTH - 34, 39, ST77XX_BLACK);
+  tft.setTextSize(2);
+  tft.setCursor(18, 166);
+  tft.setTextColor(rtcTimeValid ? ST77XX_GREEN : ST77XX_YELLOW);
+  if (rtcTimeValid) {
+    char timeLabel[20];
+    snprintf(timeLabel, sizeof(timeLabel), "TIME %02u:%02u:%02u",
+             rtcDateTime.hour, rtcDateTime.minute, rtcDateTime.second);
+    tft.print(timeLabel);
+  } else {
+    tft.print("CLOCK INVALID");
+  }
+
+  tft.setTextSize(1);
+  tft.setCursor(18, 194);
+  const bool tickFailed = rtcTimeValid && !rtcTickObserved &&
+                          millis() - rtcFirstReadAt >= 3000;
+  tft.setTextColor(rtcTickObserved ? ST77XX_GREEN :
+                   tickFailed ? ST77XX_RED : ST77XX_YELLOW);
+  tft.print(rtcTickObserved ? "TICK OK" : tickFailed ? "TICK FAIL" : "TICK WAIT");
+  tft.print(rtcAdjusted ? " | BUILD TIME SET" : " | TIME PRESERVED");
 }
 
 void drawReport() {
@@ -129,12 +183,7 @@ void drawReport() {
            flashManufacturer, flashMemoryType, flashCapacity);
   tft.print(jedecLabel);
 
-  if (rtcDetected) {
-    tft.setCursor(18, 166);
-    tft.setTextColor(rtcClockRunning ? ST77XX_GREEN : ST77XX_YELLOW);
-    tft.print("CLOCK  ");
-    tft.print(rtcClockRunning ? "RUN" : "STOP");
-  }
+  drawRtcReport();
 
   drawCentered("CHECK SCREEN + SERIAL", 211, 1, ST77XX_WHITE);
 }
@@ -168,7 +217,7 @@ void setup() {
   scanI2cBus();
   rtcSdaLevel = digitalRead(RTC_SDA_PIN);
   rtcSclLevel = digitalRead(RTC_SCL_PIN);
-  rtcDetected = readRtcClockStatus();
+  beginRtc();
 
   SPI.begin(TFT_SCLK_PIN, SPI_MISO_PIN, TFT_MOSI_PIN, -1);
   tft.init(TFT_WIDTH, TFT_HEIGHT, SPI_MODE3);
@@ -183,6 +232,17 @@ void setup() {
 }
 
 void loop() {
-  delay(5000);
-  printSerialReport();
+  static unsigned long lastDisplayAt = 0;
+  static unsigned long lastReportAt = 0;
+  const unsigned long now = millis();
+  if (now - lastDisplayAt >= 1000) {
+    lastDisplayAt = now;
+    refreshRtc();
+    drawRtcReport();
+  }
+  if (now - lastReportAt >= 5000) {
+    lastReportAt = now;
+    printSerialReport();
+  }
+  delay(20);
 }

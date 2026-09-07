@@ -26,10 +26,21 @@ constexpr uint8_t RTC_SDA_PIN = 0;
 constexpr uint8_t RTC_SCL_PIN = 1;
 constexpr uint8_t RTC_ADDRESS = 0x68;
 
+#ifndef STARTUP_SERIAL_DELAY_MS
+#define STARTUP_SERIAL_DELAY_MS 0UL
+#endif
+constexpr unsigned long STARTUP_SERIAL_DELAY = STARTUP_SERIAL_DELAY_MS;
+
+#ifndef RTC_DIAGNOSTIC_REPORT_INTERVAL_MS
+#define RTC_DIAGNOSTIC_REPORT_INTERVAL_MS 0UL
+#endif
+constexpr unsigned long RTC_DIAGNOSTIC_REPORT_INTERVAL =
+    RTC_DIAGNOSTIC_REPORT_INTERVAL_MS;
+
 // Affiche discretement dans le coin droit des ecrans de transition.
-constexpr char FIRMWARE_VERSION[] = "v0.6";
-// Schéma NVS associé à la version affichée v0.6.
-constexpr uint16_t FIRMWARE_SAVE_VERSION = 6;
+constexpr char FIRMWARE_VERSION[] = "v0.7";
+// Schéma NVS associé à la version affichée v0.7.
+constexpr uint16_t FIRMWARE_SAVE_VERSION = 7;
 
 // A press is accepted only after this duration at a stable logic level.
 constexpr unsigned long BUTTON_DEBOUNCE_INTERVAL = 35;
