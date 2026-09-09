@@ -2,6 +2,17 @@
 
 ## État de reprise
 
+Travail local au 8 septembre 2026 : les cinq nouveaux modèles sont validés
+dans `design/mascots-v1/APPROVAL.json`. La première marche gauche à quatre poses
+(`design/walk-left-v1/`) a été rejetée : les pattes semblaient s'allonger.
+La révision `design/walk-left-v2/` suit une alternance à huit poses, avec
+segments de longueur constante, appuis, passage de jambe et bras opposés. Le
+lecteur `include/animation_player.h` et le diagnostic `animation-preview`
+compilent ; les dix cibles existantes compilent également. La séquence attend
+la validation visuelle de son GIF puis le test TFT. Aucun téléversement de ce
+jalon ; le firmware normal et ses 33 assets restent ceux décrits ci-dessous.
+Voir `design/walk-left-v2/README.md` pour les preuves et la procédure d'essai.
+
 Le firmware actif est un projet PlatformIO Arduino C++ pour ESP32-C3. Le seul
 affichage géré est désormais le TFT IPS ZJY154S0800TG01 240×240. La chaîne
 graphique historique 1-bit et la dépendance SSD1306 ont été retirées.

@@ -19,6 +19,10 @@ bibliothèques Adafruit déclarées dans `platformio.ini`.
 
 ### Structure
 
+Jalon d'animation en revue : [marche gauche à huit poses](design/walk-left-v2/README.md),
+avec GIF de contrôle et firmware de diagnostic `animation-preview` compilé.
+Les nouvelles poses ne sont pas encore intégrées à l'application normale.
+
 - `src/main.cpp` : comportement applicatif actuel.
 - `include/config.h` : pinout et configuration écran.
 - `assets/tft/` : unique source de vérité des sprites BMP couleur.

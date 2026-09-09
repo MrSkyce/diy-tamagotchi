@@ -1,0 +1,57 @@
+{
+  "status": "host_checks_passed_visual_review_pending",
+  "fixed_leg_segments_px": [
+    10,
+    10
+  ],
+  "fixed_arm_segments_px": [
+    8,
+    8
+  ],
+  "theoretical_stance_drift_px": 0,
+  "ground": 106,
+  "raster_stance_drift_px": 0,
+  "area_ratio": 1.0226773957571325,
+  "frames": [
+    {
+      "file": "dragon_walk_left_01_candidate.bmp",
+      "visible_pixels": 5580,
+      "rle_bytes": 6014
+    },
+    {
+      "file": "dragon_walk_left_02_candidate.bmp",
+      "visible_pixels": 5557,
+      "rle_bytes": 5911
+    },
+    {
+      "file": "dragon_walk_left_03_candidate.bmp",
+      "visible_pixels": 5540,
+      "rle_bytes": 5848
+    },
+    {
+      "file": "dragon_walk_left_04_candidate.bmp",
+      "visible_pixels": 5518,
+      "rle_bytes": 5805
+    },
+    {
+      "file": "dragon_walk_left_05_candidate.bmp",
+      "visible_pixels": 5507,
+      "rle_bytes": 5808
+    },
+    {
+      "file": "dragon_walk_left_06_candidate.bmp",
+      "visible_pixels": 5468,
+      "rle_bytes": 5785
+    },
+    {
+      "file": "dragon_walk_left_07_candidate.bmp",
+      "visible_pixels": 5524,
+      "rle_bytes": 5857
+    },
+    {
+      "file": "dragon_walk_left_08_candidate.bmp",
+      "visible_pixels": 5592,
+      "rle_bytes": 5992
+    }
+  ]
+}

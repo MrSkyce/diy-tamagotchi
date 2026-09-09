@@ -1,0 +1,90 @@
+{
+  "status": "rejected_by_user",
+  "sources": [
+    {
+      "path": "assets/tft/dragon_walk_left_01.bmp",
+      "sha256": "f1fd656b7fa30248145745f7d46c37d95d40d602f62cdd3057468ad78382432a",
+      "normalized_background_pixels": 134
+    },
+    {
+      "path": "assets/tft/dragon_walk_left_02.bmp",
+      "sha256": "7ae6d6a95a9a1d05f18a046fec915cbb6a66d1516b17549d01bc71c578d65267",
+      "normalized_background_pixels": 62
+    }
+  ],
+  "duration_ms": 140,
+  "cycle_ms": 560,
+  "area_ratio": 1.012141652613828,
+  "ground_delta": 2,
+  "frames": [
+    {
+      "file": "dragon_walk_left_01_candidate.bmp",
+      "duration_ms": 140,
+      "reference": "A",
+      "changed_pixels": 0,
+      "protected_rows": "0..91 identical to reference",
+      "visible_pixels": 5955,
+      "native_ground": 105,
+      "y_offset": 0,
+      "ground": 105,
+      "palette_colors": 28,
+      "added_isolated_pixels": 0,
+      "added_one_pixel_holes": 0,
+      "rle_bytes": 6323,
+      "crc32": "FD49BF93",
+      "sha256": "e8739f3dfd6c9591d21ccfa8eafb736176cb3db35056d9e49666b2a42e206eb0"
+    },
+    {
+      "file": "dragon_walk_left_02_candidate.bmp",
+      "duration_ms": 140,
+      "reference": "A",
+      "changed_pixels": 215,
+      "protected_rows": "0..91 identical to reference",
+      "visible_pixels": 5982,
+      "native_ground": 107,
+      "y_offset": 0,
+      "ground": 107,
+      "palette_colors": 28,
+      "added_isolated_pixels": 0,
+      "added_one_pixel_holes": 0,
+      "rle_bytes": 6326,
+      "crc32": "3A48A639",
+      "sha256": "173800b23ca31fcd19a99876ee74c4e9b7ef9c7038af21dcb9f129f3b12619c1"
+    },
+    {
+      "file": "dragon_walk_left_03_candidate.bmp",
+      "duration_ms": 140,
+      "reference": "B",
+      "changed_pixels": 0,
+      "protected_rows": "0..91 identical to reference",
+      "visible_pixels": 6002,
+      "native_ground": 108,
+      "y_offset": -1,
+      "ground": 107,
+      "palette_colors": 29,
+      "added_isolated_pixels": 0,
+      "added_one_pixel_holes": 0,
+      "rle_bytes": 8043,
+      "crc32": "BD6F0B6F",
+      "sha256": "e4b1fb4a05c7f7a3208a09beb8a6b42055226b8ae8a962d3dd2c8f45fe7099b6"
+    },
+    {
+      "file": "dragon_walk_left_04_candidate.bmp",
+      "duration_ms": 140,
+      "reference": "B",
+      "changed_pixels": 238,
+      "protected_rows": "0..91 identical to reference",
+      "visible_pixels": 5930,
+      "native_ground": 105,
+      "y_offset": 0,
+      "ground": 105,
+      "palette_colors": 29,
+      "added_isolated_pixels": 0,
+      "added_one_pixel_holes": 0,
+      "rle_bytes": 7936,
+      "crc32": "98FE20CC",
+      "sha256": "9d46af6b4b91c0a6f435e8743c3deb707a95130c0f242450944a87759b313793"
+    }
+  ],
+  "rejection_reason": "Les pattes semblent s’allonger, le mouvement ne ressemble pas à de la marche."
+}

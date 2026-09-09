@@ -1,0 +1,120 @@
+{
+  "scope": "Candidate format and host RLE only; not art or hardware approval",
+  "candidates": [
+    {
+      "file": "blue_cat_idle_01_candidate.bmp",
+      "size": [
+        112,
+        112
+      ],
+      "bits": 24,
+      "compression": 0,
+      "colors": 24,
+      "visible_pixels": 5608,
+      "bounds": [
+        12,
+        12,
+        104,
+        99
+      ],
+      "residual_matte": 34,
+      "rgb565_bytes": 25088,
+      "rle_bytes": 5692,
+      "round_trip": "PASS",
+      "crc32": "23D4CCD4",
+      "sha256": "4c98e3b5a3d6099fb397ac51a41bc0e6e64442203d813651b02a96733f15b639"
+    },
+    {
+      "file": "green_mouse_idle_01_candidate.bmp",
+      "size": [
+        112,
+        112
+      ],
+      "bits": 24,
+      "compression": 0,
+      "colors": 23,
+      "visible_pixels": 6397,
+      "bounds": [
+        5,
+        10,
+        104,
+        98
+      ],
+      "residual_matte": 60,
+      "rgb565_bytes": 25088,
+      "rle_bytes": 7574,
+      "round_trip": "PASS",
+      "crc32": "3BAF1047",
+      "sha256": "845ae51c0f41993d52fcf41519255de9351ba7f5b2e6fa3a018216a34c77e71a"
+    },
+    {
+      "file": "purple_salamander_idle_01_candidate.bmp",
+      "size": [
+        112,
+        112
+      ],
+      "bits": 24,
+      "compression": 0,
+      "colors": 20,
+      "visible_pixels": 5101,
+      "bounds": [
+        18,
+        21,
+        106,
+        98
+      ],
+      "residual_matte": 67,
+      "rgb565_bytes": 25088,
+      "rle_bytes": 6159,
+      "round_trip": "PASS",
+      "crc32": "21AB3D5F",
+      "sha256": "16c44151f4e16352e599fea6fbda5066b384ec269830cd14ae8b75c1be61c866"
+    },
+    {
+      "file": "red_dog_idle_01_candidate.bmp",
+      "size": [
+        112,
+        112
+      ],
+      "bits": 24,
+      "compression": 0,
+      "colors": 23,
+      "visible_pixels": 5908,
+      "bounds": [
+        5,
+        19,
+        106,
+        97
+      ],
+      "residual_matte": 23,
+      "rgb565_bytes": 25088,
+      "rle_bytes": 5790,
+      "round_trip": "PASS",
+      "crc32": "A8EFA34C",
+      "sha256": "3b4312d609caa23fb41c87e580137eab188b26ce49126d08a955efcc92913dc6"
+    },
+    {
+      "file": "yellow_bird_idle_01_candidate.bmp",
+      "size": [
+        112,
+        112
+      ],
+      "bits": 24,
+      "compression": 0,
+      "colors": 23,
+      "visible_pixels": 5342,
+      "bounds": [
+        17,
+        11,
+        94,
+        100
+      ],
+      "residual_matte": 28,
+      "rgb565_bytes": 25088,
+      "rle_bytes": 5299,
+      "round_trip": "PASS",
+      "crc32": "81DA1F7D",
+      "sha256": "44b66677e1578ed8b79cd646a049b8b262e4e49a4e20a8d32e38a73236496fe0"
+    }
+  ]
+}

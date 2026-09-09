@@ -1,0 +1,744 @@
+{
+  "date": "2026-09-08",
+  "status": "designs_approved_by_user",
+  "user_statement": "les 5 nouveaux modèles sont validés",
+  "scope": "Five neutral models: silhouettes, proportions, colors and expressions. Exact BMP references preserved.",
+  "not_claimed": [
+    "Future animation frames approved",
+    "Production transparency contract satisfied",
+    "Firmware integration complete",
+    "Real TFT validation complete"
+  ],
+  "models": [
+    {
+      "id": "blue_cat",
+      "name": "Chat Bleu",
+      "file": "design/mascots-v1/bmp/blue_cat_idle_01_candidate.bmp",
+      "sha256": "4c98e3b5a3d6099fb397ac51a41bc0e6e64442203d813651b02a96733f15b639",
+      "palette_rgb": [
+        [
+          1,
+          70,
+          203
+        ],
+        [
+          1,
+          108,
+          246
+        ],
+        [
+          1,
+          157,
+          253
+        ],
+        [
+          2,
+          2,
+          11
+        ],
+        [
+          2,
+          8,
+          26
+        ],
+        [
+          2,
+          11,
+          35
+        ],
+        [
+          2,
+          138,
+          245
+        ],
+        [
+          3,
+          168,
+          253
+        ],
+        [
+          6,
+          18,
+          46
+        ],
+        [
+          17,
+          86,
+          162
+        ],
+        [
+          20,
+          46,
+          57
+        ],
+        [
+          22,
+          148,
+          227
+        ],
+        [
+          40,
+          29,
+          99
+        ],
+        [
+          86,
+          231,
+          250
+        ],
+        [
+          143,
+          214,
+          252
+        ],
+        [
+          154,
+          179,
+          173
+        ],
+        [
+          164,
+          3,
+          176
+        ],
+        [
+          164,
+          229,
+          251
+        ],
+        [
+          205,
+          245,
+          253
+        ],
+        [
+          209,
+          4,
+          215
+        ],
+        [
+          209,
+          246,
+          253
+        ],
+        [
+          231,
+          2,
+          229
+        ],
+        [
+          252,
+          252,
+          252
+        ],
+        [
+          255,
+          0,
+          255
+        ]
+      ],
+      "existing_normalizer_diagnostic": {
+        "background_connected_pixels": 34,
+        "remaining_flagged_pixels": [],
+        "applied_to_source": false
+      }
+    },
+    {
+      "id": "red_dog",
+      "name": "Chien Rouge",
+      "file": "design/mascots-v1/bmp/red_dog_idle_01_candidate.bmp",
+      "sha256": "3b4312d609caa23fb41c87e580137eab188b26ce49126d08a955efcc92913dc6",
+      "palette_rgb": [
+        [
+          7,
+          16,
+          44
+        ],
+        [
+          7,
+          17,
+          43
+        ],
+        [
+          25,
+          15,
+          37
+        ],
+        [
+          54,
+          82,
+          148
+        ],
+        [
+          62,
+          211,
+          244
+        ],
+        [
+          78,
+          26,
+          60
+        ],
+        [
+          160,
+          13,
+          179
+        ],
+        [
+          180,
+          45,
+          42
+        ],
+        [
+          207,
+          169,
+          142
+        ],
+        [
+          209,
+          12,
+          221
+        ],
+        [
+          229,
+          12,
+          11
+        ],
+        [
+          235,
+          36,
+          29
+        ],
+        [
+          240,
+          92,
+          75
+        ],
+        [
+          242,
+          208,
+          164
+        ],
+        [
+          243,
+          220,
+          46
+        ],
+        [
+          247,
+          30,
+          26
+        ],
+        [
+          247,
+          34,
+          29
+        ],
+        [
+          248,
+          153,
+          96
+        ],
+        [
+          250,
+          102,
+          84
+        ],
+        [
+          252,
+          248,
+          236
+        ],
+        [
+          253,
+          232,
+          175
+        ],
+        [
+          253,
+          234,
+          186
+        ],
+        [
+          255,
+          0,
+          255
+        ]
+      ],
+      "existing_normalizer_diagnostic": {
+        "background_connected_pixels": 23,
+        "remaining_flagged_pixels": [],
+        "applied_to_source": false
+      }
+    },
+    {
+      "id": "green_mouse",
+      "name": "Souris Verte",
+      "file": "design/mascots-v1/bmp/green_mouse_idle_01_candidate.bmp",
+      "sha256": "845ae51c0f41993d52fcf41519255de9351ba7f5b2e6fa3a018216a34c77e71a",
+      "palette_rgb": [
+        [
+          4,
+          17,
+          42
+        ],
+        [
+          5,
+          15,
+          43
+        ],
+        [
+          5,
+          19,
+          30
+        ],
+        [
+          27,
+          157,
+          59
+        ],
+        [
+          47,
+          169,
+          72
+        ],
+        [
+          48,
+          41,
+          78
+        ],
+        [
+          62,
+          212,
+          245
+        ],
+        [
+          68,
+          147,
+          140
+        ],
+        [
+          78,
+          202,
+          57
+        ],
+        [
+          93,
+          212,
+          62
+        ],
+        [
+          93,
+          212,
+          66
+        ],
+        [
+          96,
+          213,
+          63
+        ],
+        [
+          97,
+          213,
+          65
+        ],
+        [
+          111,
+          215,
+          99
+        ],
+        [
+          162,
+          8,
+          175
+        ],
+        [
+          164,
+          229,
+          145
+        ],
+        [
+          202,
+          246,
+          174
+        ],
+        [
+          212,
+          9,
+          216
+        ],
+        [
+          213,
+          250,
+          184
+        ],
+        [
+          226,
+          10,
+          228
+        ],
+        [
+          228,
+          251,
+          186
+        ],
+        [
+          248,
+          252,
+          242
+        ],
+        [
+          255,
+          0,
+          255
+        ]
+      ],
+      "existing_normalizer_diagnostic": {
+        "background_connected_pixels": 60,
+        "remaining_flagged_pixels": [],
+        "applied_to_source": false
+      }
+    },
+    {
+      "id": "yellow_bird",
+      "name": "Oiseau Jaune",
+      "file": "design/mascots-v1/bmp/yellow_bird_idle_01_candidate.bmp",
+      "sha256": "44b66677e1578ed8b79cd646a049b8b262e4e49a4e20a8d32e38a73236496fe0",
+      "palette_rgb": [
+        [
+          6,
+          14,
+          40
+        ],
+        [
+          6,
+          17,
+          41
+        ],
+        [
+          16,
+          16,
+          28
+        ],
+        [
+          41,
+          103,
+          150
+        ],
+        [
+          46,
+          213,
+          245
+        ],
+        [
+          79,
+          55,
+          47
+        ],
+        [
+          158,
+          93,
+          16
+        ],
+        [
+          168,
+          18,
+          189
+        ],
+        [
+          183,
+          170,
+          24
+        ],
+        [
+          213,
+          12,
+          213
+        ],
+        [
+          228,
+          15,
+          227
+        ],
+        [
+          241,
+          102,
+          3
+        ],
+        [
+          246,
+          154,
+          5
+        ],
+        [
+          249,
+          207,
+          22
+        ],
+        [
+          251,
+          179,
+          5
+        ],
+        [
+          252,
+          241,
+          83
+        ],
+        [
+          253,
+          217,
+          81
+        ],
+        [
+          253,
+          238,
+          18
+        ],
+        [
+          253,
+          238,
+          20
+        ],
+        [
+          253,
+          243,
+          120
+        ],
+        [
+          253,
+          244,
+          129
+        ],
+        [
+          253,
+          253,
+          252
+        ],
+        [
+          255,
+          0,
+          255
+        ]
+      ],
+      "existing_normalizer_diagnostic": {
+        "background_connected_pixels": 28,
+        "remaining_flagged_pixels": [],
+        "applied_to_source": false
+      }
+    },
+    {
+      "id": "purple_salamander",
+      "name": "Salamandre Violette",
+      "file": "design/mascots-v1/bmp/purple_salamander_idle_01_candidate.bmp",
+      "sha256": "16c44151f4e16352e599fea6fbda5066b384ec269830cd14ae8b75c1be61c866",
+      "palette_rgb": [
+        [
+          4,
+          7,
+          27
+        ],
+        [
+          7,
+          13,
+          40
+        ],
+        [
+          10,
+          15,
+          48
+        ],
+        [
+          18,
+          186,
+          250
+        ],
+        [
+          44,
+          8,
+          86
+        ],
+        [
+          92,
+          33,
+          173
+        ],
+        [
+          118,
+          251,
+          253
+        ],
+        [
+          130,
+          253,
+          253
+        ],
+        [
+          149,
+          18,
+          229
+        ],
+        [
+          152,
+          25,
+          189
+        ],
+        [
+          173,
+          37,
+          247
+        ],
+        [
+          176,
+          38,
+          247
+        ],
+        [
+          207,
+          120,
+          249
+        ],
+        [
+          211,
+          5,
+          223
+        ],
+        [
+          212,
+          134,
+          250
+        ],
+        [
+          222,
+          166,
+          250
+        ],
+        [
+          225,
+          172,
+          250
+        ],
+        [
+          230,
+          184,
+          251
+        ],
+        [
+          248,
+          239,
+          252
+        ],
+        [
+          255,
+          0,
+          255
+        ]
+      ],
+      "existing_normalizer_diagnostic": {
+        "background_connected_pixels": 56,
+        "remaining_flagged_pixels": [
+          {
+            "x": 43,
+            "y": 24,
+            "rgb": [
+              152,
+              25,
+              189
+            ]
+          },
+          {
+            "x": 35,
+            "y": 29,
+            "rgb": [
+              152,
+              25,
+              189
+            ]
+          },
+          {
+            "x": 84,
+            "y": 37,
+            "rgb": [
+              152,
+              25,
+              189
+            ]
+          },
+          {
+            "x": 61,
+            "y": 65,
+            "rgb": [
+              152,
+              25,
+              189
+            ]
+          },
+          {
+            "x": 27,
+            "y": 73,
+            "rgb": [
+              152,
+              25,
+              189
+            ]
+          },
+          {
+            "x": 28,
+            "y": 73,
+            "rgb": [
+              152,
+              25,
+              189
+            ]
+          },
+          {
+            "x": 83,
+            "y": 73,
+            "rgb": [
+              152,
+              25,
+              189
+            ]
+          },
+          {
+            "x": 28,
+            "y": 82,
+            "rgb": [
+              152,
+              25,
+              189
+            ]
+          },
+          {
+            "x": 28,
+            "y": 90,
+            "rgb": [
+              152,
+              25,
+              189
+            ]
+          },
+          {
+            "x": 28,
+            "y": 91,
+            "rgb": [
+              152,
+              25,
+              189
+            ]
+          },
+          {
+            "x": 84,
+            "y": 91,
+            "rgb": [
+              152,
+              25,
+              189
+            ]
+          }
+        ],
+        "applied_to_source": false
+      }
+    }
+  ]
+}
