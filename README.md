@@ -19,9 +19,10 @@ bibliothèques Adafruit déclarées dans `platformio.ini`.
 
 ### Structure
 
-Jalon d'animation en revue : [marche gauche à huit poses](design/walk-left-v2/README.md),
-avec GIF de contrôle et firmware de diagnostic `animation-preview` compilé.
-Les nouvelles poses ne sont pas encore intégrées à l'application normale.
+Le socle conserve le firmware v0.7 et ses 33 assets de production. Les essais
+de marche et leur diagnostic ont été retirés. Les [six références de mascottes](design/README.md)
+sont conservées pour construire le générateur hors ligne décrit dans
+[le cadrage du moteur](HANDOFF_CODEX_MOTEUR_ANIMATION_SPRITES.md).
 
 - `src/main.cpp` : comportement applicatif actuel.
 - `include/config.h` : pinout et configuration écran.
@@ -30,7 +31,8 @@ Les nouvelles poses ne sont pas encore intégrées à l'application normale.
 - `include/generated_tft_assets.h` : catalogue léger généré des assets.
 - `ASSET_STORAGE.md` : format W25Q64 et procédure de programmation USB.
 - `GRAPHICS_PLAN.md` : contrat graphique et couverture des écrans.
-- `ANIMATION_GUIDELINES.md` : création et validation de nouvelles frames.
+- `ANIMATION_GUIDELINES.md` : contraintes graphiques à préserver pour le futur moteur.
+- [Handoff du moteur d'animation](HANDOFF_CODEX_MOTEUR_ANIMATION_SPRITES.md) : cadrage du générateur hors ligne à construire.
 - `HARDWARE_EXPANSION_PLAN.md` : câblage complet validé du W25Q64, PCF8523 et BLK.
 - `HANDOFF.md` : contexte et roadmap.
 

@@ -7,7 +7,8 @@ fichiers exacts, leurs SHA-256, leurs palettes et le diagnostic de détourage.
 Les noms `_candidate` sont conservés pour ne pas casser les liens déjà partagés ;
 ils ne signifient plus que le choix des modèles est en attente.
 
-Lire [la proposition](../ANIMATION_PROPOSAL.md) avant toute intégration.
+Les [six références](../README.md) constituent le socle graphique du
+[futur générateur hors ligne](../../HANDOFF_CODEX_MOTEUR_ANIMATION_SPRITES.md).
 La revue interactive `review.html` affiche les pixels exacts des six BMP,
 avec zoom 1×/2× et fonds magenta/cyan/vert/sombre. Elle ne change pas les fichiers
 sources et ne masque aucune frange : seul #FF00FF est remplacé à l'affichage.
@@ -51,5 +52,5 @@ Les coordonnées sont conservées dans `APPROVAL.json`.
 
 L'aperçu interactif reste l'archive de la revue V1 et affiche encore le libellé
 « candidats V1 ». La présente validation s'applique exactement à ses cinq BMP.
-Prochaine phase : intégration et animations suivant la proposition ; la validation
+Prochaine phase : construction du générateur hors ligne suivant ce cadrage ; la validation
 des modèles ne vaut pas validation de frames futures ni preuve sur le TFT réel.

@@ -2,16 +2,17 @@
 
 ## État de reprise
 
-Travail local au 8 septembre 2026 : les cinq nouveaux modèles sont validés
-dans `design/mascots-v1/APPROVAL.json`. La première marche gauche à quatre poses
-(`design/walk-left-v1/`) a été rejetée : les pattes semblaient s'allonger.
-La révision `design/walk-left-v2/` suit une alternance à huit poses, avec
-segments de longueur constante, appuis, passage de jambe et bras opposés. Le
-lecteur `include/animation_player.h` et le diagnostic `animation-preview`
-compilent ; les dix cibles existantes compilent également. La séquence attend
-la validation visuelle de son GIF puis le test TFT. Aucun téléversement de ce
-jalon ; le firmware normal et ses 33 assets restent ceux décrits ci-dessous.
-Voir `design/walk-left-v2/README.md` pour les preuves et la procédure d'essai.
+Nettoyage du 9 septembre 2026 : les expérimentations de marche, leur lecteur,
+leurs tests et leur diagnostic ont été retirés du dépôt de travail. Le socle
+conserve le firmware v0.7, ses 33 assets de production et les dix environnements
+PlatformIO historiques. Aucun téléversement n'a été effectué pendant ce nettoyage.
+
+Les six références de mascottes sont recensées dans `design/README.md` : dragon
+de production et cinq modèles approuvés dans `design/mascots-v1/APPROVAL.json`.
+Leurs images, sources, aperçus et preuves d'approbation sont conservés.
+Le prochain chantier est le générateur déterministe hors ligne décrit dans
+`HANDOFF_CODEX_MOTEUR_ANIMATION_SPRITES.md` ; il n'est pas encore implémenté.
+Les validations matérielles ci-dessous concernent la v0.7, pas ce futur moteur.
 
 Le firmware actif est un projet PlatformIO Arduino C++ pour ESP32-C3. Le seul
 affichage géré est désormais le TFT IPS ZJY154S0800TG01 240×240. La chaîne
@@ -127,7 +128,8 @@ complémentaires. Avec le pilote Adafruit en rotation 0, ne pas forcer l'offset
 - `src/external_flash.cpp` : lecture, effacement et programmation W25Q64 ;
 - `src/tft_asset_store.cpp` : validation, décodage et cache d'une frame ;
 - `ASSET_STORAGE.md` : format et procédure de mise à jour des assets ;
-- `ANIMATION_GUIDELINES.md` : méthode de création des frames intermédiaires ;
+- `ANIMATION_GUIDELINES.md` : contraintes graphiques du futur moteur ;
+- `HANDOFF_CODEX_MOTEUR_ANIMATION_SPRITES.md` : source documentaire et plan du générateur hors ligne ;
 - `HARDWARE_EXPANSION_PLAN.md` : câblage cible exhaustif depuis zéro ;
 - `platformio.ini` : firmware et environnements de diagnostic.
 
