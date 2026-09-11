@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import hashlib
+import json
 import struct
 import zlib
 from collections import deque
@@ -27,6 +29,15 @@ MATTE_GREEN_MAX = 40
 MATTE_RED_BLUE_DELTA_MAX = 40
 EXPECTED_ASSET_SIZE = (112, 112)
 DRAGON_VISIBLE_PIXEL_RANGE = (5000, 7300)
+# Only this explicitly approved lateral cycle has a different silhouette range.
+RIGGED_WALK_NAMES = tuple(
+    f"dragon_rigged_walk_{direction}_{index:02}"
+    for direction in ("left", "right") for index in range(1, 9))
+RIGGED_WALK_VISIBLE_PIXEL_RANGE = (2306, 2378)
+WALK_SPECIES = ("blue_cat", "red_dog", "green_mouse", "yellow_bird", "purple_salamander")
+SPECIES_WALK_NAMES = tuple(
+    f"{species}_rigged_feet_v4_walk_{direction}_{index:02}"
+    for species in WALK_SPECIES for direction in ("left", "right") for index in range(1, 9))
 MAX_ANIMATION_AREA_RATIO = 1.12
 MAX_ANIMATION_BOTTOM_DELTA = 3
 ANIMATION_GROUPS = {
@@ -40,7 +51,27 @@ ANIMATION_GROUPS = {
     "tired": ("dragon_tired_01", "dragon_tired_02"),
     "walk_left": ("dragon_walk_left_01", "dragon_walk_left_02"),
     "walk_right": ("dragon_walk_right_01", "dragon_walk_right_02"),
+    "rigged_walk_left": RIGGED_WALK_NAMES[:8],
+    "rigged_walk_right": RIGGED_WALK_NAMES[8:],
 }
+ANIMATION_GROUPS.update({
+    f"{species}_walk_{direction}": tuple(
+        f"{species}_rigged_feet_v4_walk_{direction}_{index:02}" for index in range(1, 9))
+    for species in WALK_SPECIES for direction in ("left", "right")
+})
+
+
+def verify_species_walk_approval(folder: Path) -> None:
+    approval = json.loads((folder / "mascot_walks_approval.json").read_text())
+    required = {name + ".bmp" for name in SPECIES_WALK_NAMES}
+    if (approval.get("status") != "approved_skinned_walks"
+            or approval.get("frame_count") != 8 or approval.get("duration_ms") != 120
+            or set(approval.get("cycles", {})) != set(WALK_SPECIES)
+            or set(approval.get("files_sha256", {})) != required):
+        raise ValueError("Missing or incomplete approval for species walks")
+    for name, digest in approval["files_sha256"].items():
+        if hashlib.sha256((folder / name).read_bytes()).hexdigest() != digest:
+            raise ValueError(f"{name}: differs from approved species walk")
 
 
 def asset_name(path: Path) -> str:
@@ -174,10 +205,14 @@ def validate_asset_scale(
 
     minimum, maximum = DRAGON_VISIBLE_PIXEL_RANGE
     for name, area in visible_pixels.items():
-        if name.startswith("dragon_") and not minimum <= area <= maximum:
+        low, high = (RIGGED_WALK_VISIBLE_PIXEL_RANGE if name in RIGGED_WALK_NAMES
+                     else (minimum, maximum))
+        if name.startswith("dragon_") and not low <= area <= high:
             raise ValueError(
                 f"{name}: visible area {area} is outside the normalized "
-                f"dragon range {minimum}..{maximum}")
+                f"dragon range {low}..{high}")
+        if name in SPECIES_WALK_NAMES and visible_bottoms[name] != 104:
+            raise ValueError(f"{name}: approved walk must touch ground 104")
 
     for group, names in ANIMATION_GROUPS.items():
         missing = [name for name in names if name not in visible_pixels]
@@ -312,6 +347,8 @@ def build_flash_image(
 
     body = bytes(entries + payload)
     image_size = header_size + len(body)
+    if image_size > 8 * 1024 * 1024:
+        raise ValueError("Asset image exceeds W25Q64 capacity")
     header = struct.pack(
         FLASH_HEADER_FORMAT, FLASH_MAGIC, FLASH_FORMAT_VERSION, len(sources),
         catalog_crc, image_size, zlib.crc32(body) & 0xFFFFFFFF)
@@ -322,6 +359,16 @@ def generate() -> None:
     sources = sorted(ASSETS_DIR.glob("*.bmp"))
     if not sources:
         raise ValueError(f"No TFT BMP assets found in {ASSETS_DIR}")
+    verify_species_walk_approval(ASSETS_DIR)
+
+    approval = json.loads((ASSETS_DIR / "rigged_walk_approval.json").read_text())
+    required_files = {name + ".bmp" for name in RIGGED_WALK_NAMES}
+    if (approval.get("status") != "approved_skinned_walk"
+            or set(approval.get("files_sha256", {})) != required_files):
+        raise ValueError("Missing or incomplete approval for rigged walk")
+    for name, digest in approval["files_sha256"].items():
+        if hashlib.sha256((ASSETS_DIR / name).read_bytes()).hexdigest() != digest:
+            raise ValueError(f"{name}: differs from approved rigged walk")
 
     assets = {}
     cleaned_fringe_pixels = {}

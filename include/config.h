@@ -38,9 +38,9 @@ constexpr unsigned long RTC_DIAGNOSTIC_REPORT_INTERVAL =
     RTC_DIAGNOSTIC_REPORT_INTERVAL_MS;
 
 // Affiche discretement dans le coin droit des ecrans de transition.
-constexpr char FIRMWARE_VERSION[] = "v0.7";
-// Schéma NVS associé à la version affichée v0.7.
-constexpr uint16_t FIRMWARE_SAVE_VERSION = 7;
+constexpr char FIRMWARE_VERSION[] = "v0.8";
+// v8 adds mascot identity; v7 records are migrated without losing pet data.
+constexpr uint16_t FIRMWARE_SAVE_VERSION = 8;
 
 // A press is accepted only after this duration at a stable logic level.
 constexpr unsigned long BUTTON_DEBOUNCE_INTERVAL = 35;

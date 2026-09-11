@@ -1,0 +1,123 @@
+{
+  "animation": "walk",
+  "duration_ms": 120,
+  "files": {
+    "left/frame_00.png": "c1c2518cbf367e172a715931b0397bf5fb331122380f44e0b179be0f06a27549",
+    "left/frame_01.png": "716a1043932f2d51f3053cced319ae53fc9a1586cfd3f5f55722e51e88c385ab",
+    "left/frame_02.png": "67f025789d4e7c5c7af3712d7562a937a13ba7da3669ebf4ed8cffd2fa372aba",
+    "left/frame_03.png": "be5f145b7aa119c09e7639a66931cafbfb4b15fade0b737bd1ccb116984cb185",
+    "left/frame_04.png": "a81642c3a94b2499f924c64c7dd984a3ab868f955bfabd208167715d30029fee",
+    "left/frame_05.png": "8e3befc49fbf9b5b4157c4300e9e57d7b28f1607df18015066b819ad3bf8d3c2",
+    "left/frame_06.png": "0f1add94792724cf809632152489c427d1b4e0340a4548045a01911237b409a1",
+    "left/frame_07.png": "298848de5df6841a5c217cb1119883e1efe5730779c662e5def78d39dee7b42b",
+    "left/sheet-4x.png": "0099da0cb26514f949f36e360ca86d59eb77b397c8334950af158b7daee3476b",
+    "left/sheet.png": "ae3ea77a617de666211c6f8efaf7bbd403e2432b02c23b16046f9ff3633beea1",
+    "left/walk-1x.gif": "378b90741f04fc9ff78325101914de3bdd8efc18c6737c3bb0ed3b7d5b92dcee",
+    "left/walk-4x.gif": "4e407665bed54bab5d89b847ed17bf93336823e20bea9375b65b7a71da5956ad",
+    "right/frame_00.png": "a175bbd34eb881fe19451236c4ea3995e9beb487cb322ce7eec7a782ff96617e",
+    "right/frame_01.png": "fffa3b76dd20b96e914e8f74f5e344427b4fa73726fcb849efbf2d8395fbc6b7",
+    "right/frame_02.png": "382577e23c729c950755f41449cf6feeb771a9ea16b08cb9832e60c179add062",
+    "right/frame_03.png": "9dd401eeabb46be27bc384e6166463327e7be2a609e22fe79261af4f8b51fc0b",
+    "right/frame_04.png": "762b1804428e340a1329625b8adbdf9f2df9fd6c80634b6f791b3bf709ccf15c",
+    "right/frame_05.png": "d73a902e4362c110669631aaacec787300aed39dd04011ad24c7c344a9e40476",
+    "right/frame_06.png": "b91c3393a88db1bce29b847f45ac089143847b37d09c173acab2bbbc3f3f7626",
+    "right/frame_07.png": "360063bfba7eb2a991d77af9b4a56e1fff13f5b22b28bdbf515c9a76732dede1",
+    "right/sheet-4x.png": "61dfd8ea8c0b1a054f732ddce0a9865c0cf3e6b8ca1c64967a7fa46adf186c45",
+    "right/sheet.png": "21a7df57f9c3e5b20d61aa9267e3555af7b54155eb1a473868a9a1b846f91e64",
+    "right/walk-1x.gif": "2ebc29b0483def626b27be1e3d6d1902270c5d0803d2cf6e55c96c4b423fa590",
+    "right/walk-4x.gif": "dcecbe11f2a1bec367dc31ac9d1dfc7ea1974c6ed995681a3ce255a981633603",
+    "validation.json": "61152ae56f5aacf3e38d067503c555bfa3540465ced770a9c62572b18eaf5f9c"
+  },
+  "frame_count": 8,
+  "generator_version": "0.1.0",
+  "ground_y": 104,
+  "height": 112,
+  "inputs": {
+    "mascot.yaml": "64a4d4d4a662fb65577d6796085641abe32b65d3955d1463bb63d2b772fd5427",
+    "pose_00.png": "6bfda0740b9f1e0fc6faf788239630dd766d720bac6306dae9ab05aceccf0a73",
+    "pose_01.png": "91782b1066e121a177ffb95b1cbc18e2cb723ac1c23ce6abc237d250e35c45a7",
+    "pose_02.png": "46657538eb6fdf2cd74bc0de24c6c2ea4497badbc3e427e35a4eabdfe9648dd0",
+    "pose_03.png": "e69cf43c1664b1b7d7afd29aa258a5f9eb3dee544d957c1068b1c82c6f9faa18",
+    "pose_04.png": "d1b1df3e129baa8e115d5a976416674e79a03bd79dcaabc93c13e5ae69728a0b",
+    "pose_05.png": "ad95b463f8a94fdb8c4e83f0bd1d6a70b1261a057fe81088531c1239beb7141c",
+    "pose_06.png": "ee4a0f9eb66a46a3386a117b630556154db8023fb16018f0c2bf58e0539bf45e",
+    "pose_07.png": "b52b0c679f71092f4837c0d372e35c89ad1b36f32af932fb7d97b842a68449c9",
+    "profile.yaml": "66987f7419dd94addb6d9f7b122071349bf95ad49b5f6c726656f4617653e37a"
+  },
+  "mascot": "green_mouse_rigged_feet_v4",
+  "palette": [
+    [
+      16,
+      0,
+      32
+    ],
+    [
+      255,
+      255,
+      255
+    ],
+    [
+      192,
+      248,
+      255
+    ],
+    [
+      64,
+      232,
+      255
+    ],
+    [
+      0,
+      184,
+      240
+    ],
+    [
+      0,
+      120,
+      200
+    ],
+    [
+      0,
+      64,
+      136
+    ],
+    [
+      8,
+      32,
+      80
+    ],
+    [
+      120,
+      216,
+      48
+    ],
+    [
+      56,
+      152,
+      24
+    ],
+    [
+      208,
+      255,
+      160
+    ],
+    [
+      160,
+      232,
+      80
+    ],
+    [
+      88,
+      184,
+      32
+    ],
+    [
+      184,
+      248,
+      128
+    ]
+  ],
+  "schema_version": 1,
+  "status": "candidate",
+  "width": 112
+}

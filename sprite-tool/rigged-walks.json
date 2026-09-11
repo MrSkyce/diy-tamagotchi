@@ -1,0 +1,32 @@
+[
+  {
+    "mascot": "dragon_rigged",
+    "config": "mascots/dragon/skin.json",
+    "compiler": "dragon"
+  },
+  {
+    "mascot": "blue_cat_rigged_feet_v4",
+    "config": "mascots/blue_cat/variant-skin-v4.json",
+    "compiler": "variants"
+  },
+  {
+    "mascot": "red_dog_rigged_feet_v4",
+    "config": "mascots/red_dog/variant-skin-v4.json",
+    "compiler": "variants"
+  },
+  {
+    "mascot": "green_mouse_rigged_feet_v4",
+    "config": "mascots/green_mouse/variant-skin-v4.json",
+    "compiler": "variants"
+  },
+  {
+    "mascot": "yellow_bird_rigged_feet_v4",
+    "config": "mascots/yellow_bird/variant-skin-v4.json",
+    "compiler": "variants"
+  },
+  {
+    "mascot": "purple_salamander_rigged_feet_v4",
+    "config": "mascots/purple_salamander/variant-skin-v4.json",
+    "compiler": "variants"
+  }
+]

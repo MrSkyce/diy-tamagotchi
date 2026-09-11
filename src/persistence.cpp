@@ -1,136 +1,51 @@
 #include <Preferences.h>
+#include <nvs.h>
 
 #include "config.h"
-#include "persistence.h"
+#include "pet_save_codec.h"
 
 namespace {
 constexpr char NVS_NAMESPACE[] = "tamagotchi";
 constexpr char NVS_PET_KEY[] = "pet";
-constexpr uint32_t PET_SAVE_MAGIC = 0x54414D41;  // "TAMA"
-constexpr uint16_t PET_SAVE_VERSION = FIRMWARE_SAVE_VERSION;
-
-struct StoredPet {
-  uint32_t magic;
-  uint16_t version;
-  uint8_t hunger;
-  uint8_t happiness;
-  uint8_t health;
-  uint8_t cleanliness;
-  uint8_t fatigue;
-  uint8_t appetite;
-  uint8_t playfulness;
-  uint8_t stubbornness;
-  uint8_t lifeStage;
-  uint8_t warmth;
-  uint64_t ageMs;
-  uint64_t stageStartedAgeMs;
-  uint32_t rtcUnixTime;
-  uint32_t checksum;
-};
-
-uint32_t mixChecksum(uint32_t checksum, uint32_t value) {
-  return (checksum * 31U) ^ value;
+static_assert(FIRMWARE_SAVE_VERSION == PetSaveCodec::kVersion, "save schema mismatch");
 }
 
-uint32_t mixChecksum64(uint32_t checksum, uint64_t value) {
-  checksum = mixChecksum(checksum, static_cast<uint32_t>(value));
-  return mixChecksum(checksum, static_cast<uint32_t>(value >> 32));
+PetLoadStatus readPetSave(PetSaveData& data) {
+  nvs_handle_t handle;
+  esp_err_t result = nvs_open(NVS_NAMESPACE, NVS_READONLY, &handle);
+  if (result == ESP_ERR_NVS_NOT_FOUND) return PetLoadStatus::Missing;
+  if (result != ESP_OK) return PetLoadStatus::Unavailable;
+  size_t size = 0;
+  result = nvs_get_blob(handle, NVS_PET_KEY, nullptr, &size);
+  if (result != ESP_OK) {
+    nvs_close(handle);
+    return result == ESP_ERR_NVS_NOT_FOUND ? PetLoadStatus::Missing : PetLoadStatus::Unavailable;
+  }
+  if (size != PetSaveCodec::kLegacySize && size != PetSaveCodec::kSize) {
+    nvs_close(handle);
+    return PetLoadStatus::Invalid;
+  }
+  uint8_t bytes[PetSaveCodec::kSize]{};
+  size_t readSize = size;
+  result = nvs_get_blob(handle, NVS_PET_KEY, bytes, &readSize);
+  nvs_close(handle);
+  if (result != ESP_OK || readSize != size) return PetLoadStatus::Unavailable;
+  return PetSaveCodec::decode(bytes, size, data) ? PetLoadStatus::Loaded : PetLoadStatus::Invalid;
 }
-
-uint32_t petChecksum(const StoredPet& pet) {
-  uint32_t checksum = PET_SAVE_MAGIC ^ PET_SAVE_VERSION;
-  checksum = mixChecksum(checksum, pet.hunger);
-  checksum = mixChecksum(checksum, pet.happiness);
-  checksum = mixChecksum(checksum, pet.health);
-  checksum = mixChecksum(checksum, pet.cleanliness);
-  checksum = mixChecksum(checksum, pet.fatigue);
-  checksum = mixChecksum(checksum, pet.appetite);
-  checksum = mixChecksum(checksum, pet.playfulness);
-  checksum = mixChecksum(checksum, pet.stubbornness);
-  checksum = mixChecksum(checksum, pet.lifeStage);
-  checksum = mixChecksum(checksum, pet.warmth);
-  checksum = mixChecksum64(checksum, pet.ageMs);
-  checksum = mixChecksum64(checksum, pet.stageStartedAgeMs);
-  checksum = mixChecksum(checksum, pet.rtcUnixTime);
-  return checksum;
-}
-
-bool hasValidStats(const StoredPet& pet) {
-  return pet.hunger <= 100 && pet.happiness <= 100 && pet.health <= 100 &&
-         pet.cleanliness <= 100 && pet.fatigue <= 100 && pet.appetite <= 2 &&
-         pet.playfulness <= 2 && pet.stubbornness <= 2 && pet.lifeStage <= 3 &&
-         pet.warmth <= 3 && pet.stageStartedAgeMs <= pet.ageMs;
-}
-
-bool hasValidSaveData(const PetSaveData& data) {
-  return data.hunger <= 100 && data.happiness <= 100 && data.health <= 100 &&
-         data.cleanliness <= 100 && data.fatigue <= 100 && data.appetite <= 2 &&
-         data.playfulness <= 2 && data.stubbornness <= 2 && data.lifeStage <= 3 &&
-         data.warmth <= 3 && data.stageStartedAgeMs <= data.ageMs;
-}
-}  // namespace
 
 bool loadPetSave(PetSaveData& data) {
-  Preferences preferences;
-  if (!preferences.begin(NVS_NAMESPACE, true)) return false;
-
-  const size_t storedSize = preferences.getBytesLength(NVS_PET_KEY);
-  if (storedSize != sizeof(StoredPet)) {
-    preferences.end();
-    return false;
-  }
-
-  StoredPet stored{};
-  const size_t readSize = preferences.getBytes(NVS_PET_KEY, &stored, sizeof(stored));
-  preferences.end();
-  if (readSize != sizeof(stored) || stored.magic != PET_SAVE_MAGIC ||
-      stored.version != PET_SAVE_VERSION || !hasValidStats(stored) ||
-      stored.checksum != petChecksum(stored)) {
-    return false;
-  }
-
-  data.hunger = stored.hunger;
-  data.happiness = stored.happiness;
-  data.health = stored.health;
-  data.cleanliness = stored.cleanliness;
-  data.fatigue = stored.fatigue;
-  data.appetite = stored.appetite;
-  data.playfulness = stored.playfulness;
-  data.stubbornness = stored.stubbornness;
-  data.lifeStage = stored.lifeStage;
-  data.warmth = stored.warmth;
-  data.ageMs = stored.ageMs;
-  data.stageStartedAgeMs = stored.stageStartedAgeMs;
-  data.rtcUnixTime = stored.rtcUnixTime;
-  return true;
+  return readPetSave(data) == PetLoadStatus::Loaded;
 }
 
 bool savePetSave(const PetSaveData& data) {
-  if (!hasValidSaveData(data)) return false;
-
-  StoredPet stored{};
-  stored.magic = PET_SAVE_MAGIC;
-  stored.version = PET_SAVE_VERSION;
-  stored.hunger = data.hunger;
-  stored.happiness = data.happiness;
-  stored.health = data.health;
-  stored.cleanliness = data.cleanliness;
-  stored.fatigue = data.fatigue;
-  stored.appetite = data.appetite;
-  stored.playfulness = data.playfulness;
-  stored.stubbornness = data.stubbornness;
-  stored.lifeStage = data.lifeStage;
-  stored.warmth = data.warmth;
-  stored.ageMs = data.ageMs;
-  stored.stageStartedAgeMs = data.stageStartedAgeMs;
-  stored.rtcUnixTime = data.rtcUnixTime;
-  stored.checksum = petChecksum(stored);
-
+  uint8_t bytes[PetSaveCodec::kSize]{};
+  if (!PetSaveCodec::encode(data, bytes, sizeof(bytes))) return false;
   Preferences preferences;
   if (!preferences.begin(NVS_NAMESPACE, false)) return false;
-  const size_t writtenSize = preferences.putBytes(NVS_PET_KEY, &stored, sizeof(stored));
+  // One NVS blob write: the identity cannot commit separately from the pet.
+  const size_t written = preferences.putBytes(NVS_PET_KEY, bytes, sizeof(bytes));
   preferences.end();
-  return writtenSize == sizeof(stored);
+  return written == sizeof(bytes);
 }
 
 bool clearPetSave() {

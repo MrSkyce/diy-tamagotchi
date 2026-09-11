@@ -1,0 +1,42 @@
+# Profile vocabulary is independent of species and source filenames.
+schema_version: 1
+id: biped
+animation: walk
+frames: 6
+duration_ms: 120
+tracks:
+  near_leg:
+    - {pose: forward}
+    - {pose: forward}
+    - {pose: neutral}
+    - {pose: backward}
+    - {pose: backward}
+    - {pose: neutral}
+  far_leg:
+    - {pose: backward}
+    - {pose: backward}
+    - {pose: neutral}
+    - {pose: forward}
+    - {pose: forward}
+    - {pose: neutral}
+  body:
+    - {offset: [0, 0]}
+    - {offset: [0, 1]}
+    - {offset: [0, 1]}
+    - {offset: [0, 0]}
+    - {offset: [0, 1]}
+    - {offset: [0, 1]}
+  head:
+    - {offset: [0, 0]}
+    - {offset: [0, 0]}
+    - {offset: [0, 1]}
+    - {offset: [0, 0]}
+    - {offset: [0, 1]}
+    - {offset: [0, 0]}
+  tail:
+    - {offset: [0, 0]}
+    - {offset: [0, -1]}
+    - {offset: [0, -1]}
+    - {offset: [0, 0]}
+    - {offset: [0, 1]}
+    - {offset: [0, 1]}

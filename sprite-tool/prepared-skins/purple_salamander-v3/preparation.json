@@ -1,0 +1,671 @@
+{
+  "compiler_sha256": "135729b7ac8271a59a3d226e902ee0617bf6f488c74659e02be62ee5fc6d397f",
+  "config_sha256": "466e5f7c112acabce1a623e0c0c6061f928888804f3fec60974d072e42cc4237",
+  "files": {
+    "mascot.yaml": "532cd0466efc406d2422eae199458731f8a7b13065235c17c4b7fa744a20e9cd",
+    "part_head.png": "726d102bb299b11527ec45ad98a540b0d26d7448a659de1bd456dacf5a9dcee5",
+    "part_tail.png": "97b31ed247b6cd290eb09e53164ee1212b41d0d4ea01d4074214b01c1691bfad",
+    "pose_00.png": "c164138641c36d3f4bd50884bc830d8ad49b203553033b91b5099ae56f3a52f5",
+    "pose_01.png": "1c64504ec932444d8ed0045fe3e596bd45acc20c1aa023fb47c0e0905f67b182",
+    "pose_02.png": "f8fd6a5c1092421d7c5698cebf1b15b52c4b6ceb4ee93196e43c924e4967c382",
+    "pose_03.png": "d72ef77da67bcca588ff28f901a21d6b7150e11196470201629e8ddf125a4195",
+    "pose_04.png": "1e9572289d13398f424afda38edb460a435606d08f76c7047bbd92664c31a107",
+    "pose_05.png": "2af0276a59d8a1676102b8f563ba4995d54a1f1cdb59fbaeb2ef0e8c7e9a4c79",
+    "pose_06.png": "7665079b91a57fd83dcac8eab4c8f151081df2bdc558f1f7d2cb7d27feb0a56a",
+    "pose_07.png": "2a5c2fc967f68115b2f393d57b43dc080430b6f44c746ba372eb13cdc2e812dd",
+    "profile.yaml": "66987f7419dd94addb6d9f7b122071349bf95ad49b5f6c726656f4617653e37a",
+    "travel.gif": "6035463c56f05f136e1fe56e9a7afee570f954db9bedc34872b306cc97327461"
+  },
+  "limitations": [
+    "Only design direction approved; cycle requires review",
+    "Native-grid masks and newly rasterized limbs require review",
+    "Bird proportions differ from approved dragon motion",
+    "No firmware export approval inherited"
+  ],
+  "poses": [
+    {
+      "arms": {
+        "far": {
+          "elbow": [
+            56.98301486524635,
+            72.93509554042609
+          ],
+          "hand": [
+            62.2,
+            79
+          ],
+          "shoulder": [
+            58,
+            65
+          ]
+        },
+        "near": {
+          "elbow": [
+            52.78301486524635,
+            71.06490445957391
+          ],
+          "hand": [
+            53.8,
+            79
+          ],
+          "shoulder": [
+            58,
+            65
+          ]
+        }
+      },
+      "bob": 0,
+      "index": 0,
+      "legs": {
+        "far": {
+          "ankle": [
+            50,
+            99
+          ],
+          "hip": [
+            56,
+            80
+          ],
+          "knee": [
+            59.37903327246252,
+            91.51443155972501
+          ],
+          "support": false
+        },
+        "near": {
+          "ankle": [
+            62,
+            101
+          ],
+          "hip": [
+            56,
+            80
+          ],
+          "knee": [
+            63.78352124189891,
+            89.13327964517174
+          ],
+          "support": true
+        }
+      },
+      "phase": "contact"
+    },
+    {
+      "arms": {
+        "far": {
+          "elbow": [
+            55.85903098877418,
+            73.70819380224516
+          ],
+          "hand": [
+            60.8,
+            80
+          ],
+          "shoulder": [
+            58,
+            66
+          ]
+        },
+        "near": {
+          "elbow": [
+            53.26330947304161,
+            72.44699642095624
+          ],
+          "hand": [
+            55.9,
+            80
+          ],
+          "shoulder": [
+            58,
+            66
+          ]
+        }
+      },
+      "bob": 1,
+      "index": 1,
+      "legs": {
+        "far": {
+          "ankle": [
+            52,
+            95
+          ],
+          "hip": [
+            56,
+            81
+          ],
+          "knee": [
+            63.17235386755756,
+            90.62067253358788
+          ],
+          "support": false
+        },
+        "near": {
+          "ankle": [
+            59,
+            101
+          ],
+          "hip": [
+            56,
+            81
+          ],
+          "knee": [
+            63.889937076647996,
+            90.0415094385028
+          ],
+          "support": true
+        }
+      },
+      "phase": "down"
+    },
+    {
+      "arms": {
+        "far": {
+          "elbow": [
+            54.12701665379258,
+            72.0
+          ],
+          "hand": [
+            58.0,
+            79
+          ],
+          "shoulder": [
+            58,
+            65
+          ]
+        },
+        "near": {
+          "elbow": [
+            54.12701665379258,
+            72.0
+          ],
+          "hand": [
+            58.0,
+            79
+          ],
+          "shoulder": [
+            58,
+            65
+          ]
+        }
+      },
+      "bob": 0,
+      "index": 2,
+      "legs": {
+        "far": {
+          "ankle": [
+            56,
+            93
+          ],
+          "hip": [
+            56,
+            80
+          ],
+          "knee": [
+            66.087120500916,
+            86.5
+          ],
+          "support": false
+        },
+        "near": {
+          "ankle": [
+            56,
+            101
+          ],
+          "hip": [
+            56,
+            80
+          ],
+          "knee": [
+            61.80947501931112,
+            90.5
+          ],
+          "support": true
+        }
+      },
+      "phase": "passing"
+    },
+    {
+      "arms": {
+        "far": {
+          "elbow": [
+            52.89809097413921,
+            70.1620227435348
+          ],
+          "hand": [
+            54.5,
+            78
+          ],
+          "shoulder": [
+            58,
+            64
+          ]
+        },
+        "near": {
+          "elbow": [
+            55.3633094730416,
+            71.55300357904376
+          ],
+          "hand": [
+            60.1,
+            78
+          ],
+          "shoulder": [
+            58,
+            64
+          ]
+        }
+      },
+      "bob": -1,
+      "index": 3,
+      "legs": {
+        "far": {
+          "ankle": [
+            61,
+            96
+          ],
+          "hip": [
+            56,
+            79
+          ],
+          "knee": [
+            66.26434361985183,
+            85.216369523573
+          ],
+          "support": false
+        },
+        "near": {
+          "ankle": [
+            53,
+            101
+          ],
+          "hip": [
+            56,
+            79
+          ],
+          "knee": [
+            59.013446217089985,
+            90.61546993869409
+          ],
+          "support": true
+        }
+      },
+      "phase": "up"
+    },
+    {
+      "arms": {
+        "far": {
+          "elbow": [
+            52.78301486524635,
+            71.06490445957391
+          ],
+          "hand": [
+            53.8,
+            79
+          ],
+          "shoulder": [
+            58,
+            65
+          ]
+        },
+        "near": {
+          "elbow": [
+            56.98301486524635,
+            72.93509554042609
+          ],
+          "hand": [
+            62.2,
+            79
+          ],
+          "shoulder": [
+            58,
+            65
+          ]
+        }
+      },
+      "bob": 0,
+      "index": 4,
+      "legs": {
+        "far": {
+          "ankle": [
+            62,
+            101
+          ],
+          "hip": [
+            56,
+            80
+          ],
+          "knee": [
+            63.78352124189891,
+            89.13327964517174
+          ],
+          "support": true
+        },
+        "near": {
+          "ankle": [
+            50,
+            99
+          ],
+          "hip": [
+            56,
+            80
+          ],
+          "knee": [
+            59.37903327246252,
+            91.51443155972501
+          ],
+          "support": false
+        }
+      },
+      "phase": "contact"
+    },
+    {
+      "arms": {
+        "far": {
+          "elbow": [
+            53.26330947304161,
+            72.44699642095624
+          ],
+          "hand": [
+            55.9,
+            80
+          ],
+          "shoulder": [
+            58,
+            66
+          ]
+        },
+        "near": {
+          "elbow": [
+            55.85903098877418,
+            73.70819380224516
+          ],
+          "hand": [
+            60.8,
+            80
+          ],
+          "shoulder": [
+            58,
+            66
+          ]
+        }
+      },
+      "bob": 1,
+      "index": 5,
+      "legs": {
+        "far": {
+          "ankle": [
+            59,
+            101
+          ],
+          "hip": [
+            56,
+            81
+          ],
+          "knee": [
+            63.889937076647996,
+            90.0415094385028
+          ],
+          "support": true
+        },
+        "near": {
+          "ankle": [
+            52,
+            95
+          ],
+          "hip": [
+            56,
+            81
+          ],
+          "knee": [
+            63.17235386755756,
+            90.62067253358788
+          ],
+          "support": false
+        }
+      },
+      "phase": "down"
+    },
+    {
+      "arms": {
+        "far": {
+          "elbow": [
+            54.12701665379258,
+            72.0
+          ],
+          "hand": [
+            58.0,
+            79
+          ],
+          "shoulder": [
+            58,
+            65
+          ]
+        },
+        "near": {
+          "elbow": [
+            54.12701665379258,
+            72.0
+          ],
+          "hand": [
+            58.0,
+            79
+          ],
+          "shoulder": [
+            58,
+            65
+          ]
+        }
+      },
+      "bob": 0,
+      "index": 6,
+      "legs": {
+        "far": {
+          "ankle": [
+            56,
+            101
+          ],
+          "hip": [
+            56,
+            80
+          ],
+          "knee": [
+            61.80947501931112,
+            90.5
+          ],
+          "support": true
+        },
+        "near": {
+          "ankle": [
+            56,
+            93
+          ],
+          "hip": [
+            56,
+            80
+          ],
+          "knee": [
+            66.087120500916,
+            86.5
+          ],
+          "support": false
+        }
+      },
+      "phase": "passing"
+    },
+    {
+      "arms": {
+        "far": {
+          "elbow": [
+            55.3633094730416,
+            71.55300357904376
+          ],
+          "hand": [
+            60.1,
+            78
+          ],
+          "shoulder": [
+            58,
+            64
+          ]
+        },
+        "near": {
+          "elbow": [
+            52.89809097413921,
+            70.1620227435348
+          ],
+          "hand": [
+            54.5,
+            78
+          ],
+          "shoulder": [
+            58,
+            64
+          ]
+        }
+      },
+      "bob": -1,
+      "index": 7,
+      "legs": {
+        "far": {
+          "ankle": [
+            53,
+            101
+          ],
+          "hip": [
+            56,
+            79
+          ],
+          "knee": [
+            59.013446217089985,
+            90.61546993869409
+          ],
+          "support": true
+        },
+        "near": {
+          "ankle": [
+            61,
+            96
+          ],
+          "hip": [
+            56,
+            79
+          ],
+          "knee": [
+            66.26434361985183,
+            85.216369523573
+          ],
+          "support": false
+        }
+      },
+      "phase": "up"
+    }
+  ],
+  "rig": {
+    "arm_swing": 0.7,
+    "bob": [
+      0,
+      1,
+      0,
+      -1,
+      0,
+      1,
+      0,
+      -1
+    ],
+    "duration_ms": 120,
+    "foot_height": 3,
+    "foot_lift": [
+      0,
+      0,
+      0,
+      0,
+      2,
+      6,
+      8,
+      5
+    ],
+    "foot_x": [
+      6,
+      3,
+      0,
+      -3,
+      -6,
+      -4,
+      0,
+      5
+    ],
+    "forearm": 8,
+    "ground": 104,
+    "hand_drop": 14,
+    "head": [
+      -13,
+      -51,
+      21,
+      -15
+    ],
+    "hip_x": 56,
+    "hip_y": 80,
+    "muzzle": [
+      13,
+      -33,
+      28,
+      -22
+    ],
+    "shin": 12,
+    "shoulder": [
+      2,
+      -15
+    ],
+    "tail": [
+      [
+        -4,
+        -2
+      ],
+      [
+        -22,
+        8
+      ],
+      [
+        -39,
+        2
+      ],
+      [
+        -26,
+        14
+      ],
+      [
+        -1,
+        7
+      ]
+    ],
+    "thigh": 12,
+    "torso": [
+      -13,
+      -20,
+      14,
+      6
+    ],
+    "travel_per_frame": 3,
+    "upper_arm": 8,
+    "wing": [
+      [
+        -11,
+        -14
+      ],
+      [
+        -26,
+        -21
+      ],
+      [
+        -24,
+        -4
+      ],
+      [
+        -13,
+        -7
+      ]
+    ]
+  },
+  "source_sha256": "88d5501c3e6acd8a574dcc114ba83a85b7ce0f90dee8514715a59842d1b3b69f",
+  "status": "candidate"
+}

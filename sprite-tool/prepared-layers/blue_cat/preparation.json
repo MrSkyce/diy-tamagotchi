@@ -1,0 +1,167 @@
+{
+  "exact_recomposition": true,
+  "explicitly_cleared_pixels": [
+    [
+      26,
+      12
+    ],
+    [
+      27,
+      12
+    ],
+    [
+      28,
+      12
+    ],
+    [
+      29,
+      12
+    ],
+    [
+      30,
+      12
+    ],
+    [
+      31,
+      12
+    ],
+    [
+      81,
+      12
+    ],
+    [
+      82,
+      12
+    ],
+    [
+      83,
+      12
+    ],
+    [
+      84,
+      12
+    ],
+    [
+      85,
+      12
+    ],
+    [
+      80,
+      13
+    ],
+    [
+      34,
+      14
+    ],
+    [
+      34,
+      15
+    ],
+    [
+      38,
+      19
+    ],
+    [
+      73,
+      19
+    ],
+    [
+      70,
+      21
+    ],
+    [
+      71,
+      21
+    ],
+    [
+      47,
+      23
+    ],
+    [
+      47,
+      24
+    ],
+    [
+      24,
+      72
+    ],
+    [
+      24,
+      73
+    ],
+    [
+      103,
+      86
+    ],
+    [
+      86,
+      87
+    ],
+    [
+      87,
+      87
+    ],
+    [
+      88,
+      87
+    ],
+    [
+      101,
+      90
+    ],
+    [
+      101,
+      91
+    ],
+    [
+      45,
+      96
+    ],
+    [
+      66,
+      96
+    ],
+    [
+      64,
+      97
+    ],
+    [
+      66,
+      97
+    ],
+    [
+      68,
+      98
+    ],
+    [
+      68,
+      99
+    ]
+  ],
+  "files": {
+    "body.png": "c5458a8ac7d38932f92800e8defa34974fc1ffe00f8b695582b513e8d68ca29c",
+    "far_leg.png": "7d278378fc8e756456eccee829d378b59eb4aaa48c67836cb093b30a79b3a84b",
+    "layers.png": "20d84bfe84afab6b50388b18f8e1480ef1a8ed9001ef596c054cb820c33578da",
+    "near_leg.png": "6bda0a06f4217bcf62e4093a7cacb5758045c9b8635ceb0b10505def6135c0b7",
+    "recomposed.png": "ce311d51a3c812f0143b414e09764abb46360eb19d943a9cc0356ac23c0a629f",
+    "tail.png": "b6543025f67270e0ff7ceea9f6e83fd8beed8b6a99750e6e585f1dc1b6a080ed"
+  },
+  "layers_in_sheet_order": [
+    "tail",
+    "near_leg",
+    "far_leg",
+    "body"
+  ],
+  "mascot": "blue_cat",
+  "recomposition_pixel_sha256": "fec8ee60f957c05a6aead534df76cba71c077f52d87864dde43f5745a2a0fbad",
+  "remaining_work": [
+    "review anatomical cuts",
+    "draw occluded surfaces",
+    "draw alternative poses",
+    "review animated movement"
+  ],
+  "schema_version": 1,
+  "source_sha256": "0f96e8914622dcca56a45334ef79766e8a3d32b5fd59a44c5c6577eda187fd75",
+  "spec_sha256": "87666c21f6963656ed66436d08c9bbbf248a790b0a1679bc5059397ae802efd5",
+  "status": "initial_layers_review_pending"
+}

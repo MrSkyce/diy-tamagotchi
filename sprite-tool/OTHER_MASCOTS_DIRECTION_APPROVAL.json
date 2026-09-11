@@ -1,0 +1,18 @@
+{
+  "status": "approved_design_direction_only",
+  "reviewed_by": "user",
+  "user_statement": "oui",
+  "scope": "Direction des cinq profils, en réponse à « Est-ce que cette direction te convient pour les cinq ? »",
+  "not_approved": [
+    "cycles animés",
+    "export firmware",
+    "validation TFT"
+  ],
+  "files_sha256": {
+    "mascots/blue_cat/art-candidates/profile-v1.png": "32d490297a0b3f1f7d4bbff935efd1edad162566114c40578ed7ad023b912312",
+    "mascots/red_dog/art-candidates/profile-v1.png": "a4c283eff397722033af2a7172bfcb223ef6732639af6f09a3d1046e5a4ccbea",
+    "mascots/green_mouse/art-candidates/profile-v1.png": "6dc98ef511e30ed39d610be25b15576d25dd67341a8a6bdeba83da26c3c64c76",
+    "mascots/yellow_bird/art-candidates/profile-v1.png": "a0047857d69664b24bbc10f4d8eb87367632c691e5af1cf93419b04b3c7c6f7a",
+    "mascots/purple_salamander/art-candidates/profile-v1.png": "88d5501c3e6acd8a574dcc114ba83a85b7ce0f90dee8514715a59842d1b3b69f"
+  }
+}

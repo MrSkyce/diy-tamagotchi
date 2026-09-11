@@ -1,0 +1,123 @@
+{
+  "exact_recomposition": true,
+  "explicitly_cleared_pixels": [
+    [
+      94,
+      31
+    ],
+    [
+      94,
+      32
+    ],
+    [
+      94,
+      33
+    ],
+    [
+      94,
+      34
+    ],
+    [
+      9,
+      43
+    ],
+    [
+      102,
+      43
+    ],
+    [
+      24,
+      65
+    ],
+    [
+      24,
+      66
+    ],
+    [
+      102,
+      66
+    ],
+    [
+      86,
+      67
+    ],
+    [
+      30,
+      73
+    ],
+    [
+      81,
+      73
+    ],
+    [
+      80,
+      75
+    ],
+    [
+      80,
+      76
+    ],
+    [
+      80,
+      77
+    ],
+    [
+      80,
+      78
+    ],
+    [
+      87,
+      80
+    ],
+    [
+      87,
+      81
+    ],
+    [
+      84,
+      94
+    ],
+    [
+      85,
+      94
+    ],
+    [
+      66,
+      95
+    ],
+    [
+      80,
+      96
+    ],
+    [
+      80,
+      97
+    ]
+  ],
+  "files": {
+    "body.png": "f838d9e419a27f7f9cd67748c7ee30f4a234f00ec995facf7050364d6340afa5",
+    "far_leg.png": "f8b55e0560e2422dbb07c51e0f09695228563b8d6f458475fcee951fc0fc202e",
+    "layers.png": "8cd83be8822c5b86c03388298dbd2f39f5472b7e68bf3fba52692406ecb597fc",
+    "near_leg.png": "e610ed1db7c5e3b850699c427c040214834df206b638284489d7fc9b9f0aa502",
+    "recomposed.png": "e6b7375a2e718cd9eec48234873bb963c3b94477e1f60a1f77e8ce57e5e29543",
+    "tail.png": "64ab7d2d9da3ea9ae14adbe39d9add228b6a6bbed9c81917c9061a86c8e89e4a"
+  },
+  "layers_in_sheet_order": [
+    "tail",
+    "near_leg",
+    "far_leg",
+    "body"
+  ],
+  "mascot": "red_dog",
+  "recomposition_pixel_sha256": "bb285248e3e565c01be66c00d32533a0bc34238285a1ff1d164e7d89956bdbf8",
+  "remaining_work": [
+    "review anatomical cuts",
+    "draw occluded surfaces",
+    "draw alternative poses",
+    "review animated movement"
+  ],
+  "schema_version": 1,
+  "source_sha256": "2b0ab23417bd673cb395c0fd2c8e5cca0c7588e574e27eb90ddd75d44fd0203b",
+  "spec_sha256": "626c58ea9717f132b12b28de76c21c81bef165caff71a6491534f79be88b9df5",
+  "status": "initial_layers_review_pending"
+}

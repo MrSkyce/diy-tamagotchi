@@ -1,0 +1,17 @@
+# Manual selections on the approved neutral reference. Candidates, not a new design.
+schema_version: 1
+id: yellow_bird
+source: ../../references/yellow_bird/neutral.png
+source_sha256: 59c89b4bb28a7c844bfd931635af4bf9e9a88fa6ab2bf871fa9b98db28a1c53c
+remainder: body
+# Explicit background-connected fringe pixels from the existing production codec.
+clear_pixels: [[60, 11], [27, 31], [28, 31], [29, 31], [82, 31], [83, 31], [84, 31], [85, 31], [94, 56], [94, 57], [94, 58], [94, 59], [94, 60], [94, 61], [94, 62], [18, 80], [19, 80], [92, 80], [93, 80], [17, 82], [94, 82], [30, 96], [30, 97], [30, 98], [47, 98], [49, 98], [30, 99], [47, 99]]
+parts:
+  - id: far_wing
+    polygon: [[25, 75], [33, 76], [39, 82], [40, 87], [35, 91], [29, 94], [22, 91], [17, 87], [17, 81]]
+  - id: near_wing
+    polygon: [[87, 75], [79, 76], [73, 82], [72, 87], [77, 91], [83, 94], [90, 91], [95, 87], [95, 81]]
+  - id: near_leg
+    polygon: [[69, 90], [75, 89], [81, 93], [81, 101], [64, 101], [64, 96]]
+  - id: far_leg
+    polygon: [[36, 90], [42, 89], [47, 94], [47, 101], [29, 101], [29, 96]]

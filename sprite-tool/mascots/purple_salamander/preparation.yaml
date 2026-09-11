@@ -1,0 +1,15 @@
+# Explicit manual cut selections. Anatomical/movement review is still pending.
+schema_version: 1
+id: purple_salamander
+source: ../../references/purple_salamander/neutral.png
+source_sha256: 0ee08b7680c87a46b4f2a43ccfbef8fa36b49207849f27999c2b455cef04bd2d
+remainder: body
+# Background-connected cleanup only; interior colors are not removed.
+clear_pixels: [[64,21],[64,22],[76,26],[76,27],[28,31],[85,33],[85,34],[91,47],[91,48],[91,49],[91,50],[91,51],[91,52],[19,66],[22,71],[23,73],[24,73],[86,73],[87,73],[26,76],[26,92],[26,93],[26,94],[43,94],[44,94],[45,94],[65,94],[66,94],[67,94],[83,96],[28,98],[29,98],[30,98],[31,98],[33,98],[34,98],[35,98],[36,98],[37,98],[38,98],[39,98],[40,98],[41,98],[69,98],[70,98],[71,98],[72,98],[73,98],[74,98],[75,98],[76,98],[77,98],[78,98],[79,98],[80,98],[81,98]]
+parts:
+  - id: tail
+    polygon: [[88,64],[108,64],[108,96],[84,98],[80,87]]
+  - id: near_leg
+    polygon: [[71,75],[87,75],[88,100],[64,100],[61,93]]
+  - id: far_leg
+    polygon: [[22,74],[42,75],[49,92],[47,100],[22,100]]

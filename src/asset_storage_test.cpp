@@ -6,6 +6,7 @@
 #include "config.h"
 #include "external_flash.h"
 #include "generated_tft_assets.h"
+#include "mascot_walks.h"
 #include "tft_asset_store.h"
 
 namespace {
@@ -16,6 +17,79 @@ TftAssetStore assets;
 bool assetsReady = false;
 uint16_t currentAsset = 0;
 uint32_t lastFrameAt = 0;
+
+#ifdef ASSET_WALK_PREVIEW
+WalkCycle previewWalk;
+MascotId previewMascot = MascotId::DRAGON;
+bool previewPaused = false;
+uint8_t buttonRaw = 0;
+uint8_t buttonStable = 0;
+uint32_t buttonChangedAt = 0;
+
+bool drawWalk() {
+  const auto id = mascotWalkFrame(previewMascot, previewWalk.right(), previewWalk.phase());
+  const uint32_t started = micros();
+  if (!assets.load(id)) return false;
+  const uint32_t loaded = micros();
+  constexpr uint16_t background = 0x1085;
+  constexpr int16_t top = 52;
+  const uint16_t* pixels = assets.pixels();
+  uint16_t line[TFT_WIDTH];
+  // Redraw a fixed stripe, including the old position: no stale trails.
+  tft.startWrite();
+  tft.setAddrWindow(0, top, TFT_WIDTH, TFT_ASSET_HEIGHT);
+  for (int16_t y = 0; y < TFT_ASSET_HEIGHT; ++y) {
+    for (int16_t x = 0; x < TFT_WIDTH; ++x) {
+      const int16_t sx = x - previewWalk.x();
+      const uint16_t pixel = sx >= 0 && sx < TFT_ASSET_WIDTH
+          ? pixels[y * TFT_ASSET_WIDTH + sx] : TFT_ASSET_TRANSPARENT;
+      line[x] = pixel == TFT_ASSET_TRANSPARENT ? background : pixel;
+    }
+    tft.writePixels(line, TFT_WIDTH);
+  }
+  tft.endWrite();
+  tft.drawFastHLine(0, top + 105, TFT_WIDTH, ST77XX_WHITE);
+  tft.fillRect(0, 178, TFT_WIDTH, 28, background);
+  tft.setCursor(6, 181);
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setTextSize(1);
+  tft.printf("%s  %s  %u/8 %s", mascotWalk(previewMascot).label,
+             previewWalk.right() ? ">" : "<", previewWalk.phase()+1,
+             previewPaused ? "PAUSE" : "");
+  Serial.printf("WALK species=%u direction=%s phase=%u x=%d load_us=%lu total_us=%lu\n",
+                static_cast<unsigned>(previewMascot), previewWalk.right() ? "right" : "left",
+                previewWalk.phase(), previewWalk.x(),
+                static_cast<unsigned long>(loaded-started),
+                static_cast<unsigned long>(micros()-started));
+  return true;
+}
+
+bool updatePreviewButtons(uint32_t now) {
+  const uint8_t raw = (digitalRead(BTN_LEFT) == LOW ? 1 : 0) |
+                      (digitalRead(BTN_OK) == LOW ? 2 : 0) |
+                      (digitalRead(BTN_RIGHT) == LOW ? 4 : 0);
+  if (raw != buttonRaw) {
+    buttonRaw = raw;
+    buttonChangedAt = now;
+  }
+  if (raw == buttonStable || now-buttonChangedAt < BUTTON_DEBOUNCE_INTERVAL) return false;
+  const uint8_t pressed = raw & ~buttonStable;
+  buttonStable = raw;
+  if (pressed == 1 || pressed == 4) {
+    const uint8_t count = static_cast<uint8_t>(MascotId::COUNT);
+    previewMascot = static_cast<MascotId>((static_cast<uint8_t>(previewMascot) +
+                                         (pressed == 4 ? 1 : count-1)) % count);
+    previewWalk = WalkCycle();
+    previewWalk.update(now, !previewPaused);
+    return true;
+  }
+  if (pressed == 2) {
+    previewPaused = !previewPaused;
+    return true;
+  }
+  return false;
+}
+#endif
 
 void drawCentered(const char* text, int16_t y, uint8_t size,
                   uint16_t color) {
@@ -67,6 +141,11 @@ void setup() {
   Serial.begin(115200);
   delay(10000);
   pinMode(TFT_BLK_PIN, OUTPUT);
+#ifdef ASSET_WALK_PREVIEW
+  pinMode(BTN_LEFT, INPUT_PULLUP);
+  pinMode(BTN_OK, INPUT_PULLUP);
+  pinMode(BTN_RIGHT, INPUT_PULLUP);
+#endif
   digitalWrite(TFT_BLK_PIN, HIGH);
   flash.configureChipSelects();
   SPI.begin(TFT_SCLK_PIN, SPI_MISO_PIN, TFT_MOSI_PIN, -1);
@@ -110,11 +189,29 @@ void setup() {
   char crcLabel[24];
   snprintf(crcLabel, sizeof(crcLabel), "%u CRC OK", TFT_ASSET_COUNT);
   drawCentered(crcLabel, 218, 2, ST77XX_GREEN);
+#ifdef ASSET_WALK_PREVIEW
+  tft.fillRect(0, 0, TFT_WIDTH, 35, ST77XX_BLACK);
+  drawCentered("WALK: L/R MASCOT", 6, 1, ST77XX_CYAN);
+  drawCentered("OK PAUSE / RESUME", 20, 1, ST77XX_WHITE);
+  previewWalk.update(millis(), true);
+  assetsReady = drawWalk();
+#else
   drawAsset(currentAsset);
+#endif
   lastFrameAt = millis();
 }
 
 void loop() {
+#ifdef ASSET_WALK_PREVIEW
+  if (!assetsReady) return;
+  const uint32_t now = millis();
+  const bool changed = updatePreviewButtons(now);
+  const bool advanced = previewWalk.update(now, !previewPaused);
+  if ((changed || advanced) && !drawWalk()) {
+    assetsReady = false;
+    Serial.printf("WALK FAILED: %s\n", assets.error());
+  }
+#else
   if (!assetsReady || millis() - lastFrameAt < 300) return;
   lastFrameAt += 300;
   currentAsset = (currentAsset + 1) % TFT_ASSET_COUNT;
@@ -123,4 +220,5 @@ void loop() {
     Serial.printf("ASSET %u FAILED DURING LOOP: %s\n", currentAsset,
                   assets.error());
   }
+#endif
 }

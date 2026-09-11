@@ -2,6 +2,43 @@
 
 ## État de reprise
 
+Audit courant : `sprite-tool/INTEGRATION_AUDIT.md`. 199 tests passent, dont le
+vrai décodeur embarqué sur 129 images ; défaut de cache INVALID corrigé.
+`sprite-anim generate-rigged destination --root sprite-tool` reconstruit les
+96 PNG des six marches et vérifie l'égalité aux lots approuvés, sans les remplacer.
+Les illustrations d'autres états sont hors V1 marche selon le handoff ; restent
+les essais sur carte. La validation stricte des variantes est implémentée : les
+20 configurations V1–V4 restent acceptées, les 96 PNG approuvés sont reproduits
+à l'identique. Compilation de la variante 30 secondes revérifiée le 10 septembre.
+
+Choix utilisateur confirmé : mascotte choisie à la création, puis persistée.
+Le registre commun `include/mascot_walks.h` est utilisé par HOME pour les six espèces ;
+la cible `mascot-walk-test` permet de parcourir les six marches sans sauvegarde
+(gauche/droite : espèce, OK : pause). Compilation réussie, 169 tests hôte passent.
+Migration v7 vers v8, choix à la création et protection du démarrage implémentés
+(dragon conservé pour v7) : 172 tests passent ; jeu principal et variante 30s
+compilent. HOME utilise l'espèce sauvegardée ; les états non illustrés gardent
+provisoirement sa pose immobile. Voir `sprite-tool/CREATION_SELECTION.md`.
+Aucun téléversement ; ne pas revenir au
+firmware v0.7 après migration v8 sans procédure de restauration.
+
+Inflexion animation choisie le 9 septembre 2026 : les cycles rigides ci-dessous
+sont jugés non convaincants et écartés comme direction artistique. On construit
+désormais un mannequin articulé à huit poses avant l'habillage pixel art.
+Premier jalon : [étude du dragon sans détails](sprite-tool/MOTION_STUDY.md),
+dont la marche est désormais approuvée par l'utilisateur (« marche parfaite »).
+La référence d'habillage V3 et le cycle corrigé sont approuvés (« top », puis
+« oui, validé. »). Le [cycle habillé](sprite-tool/RIGGED_WALK.md) est intégré au
+lecteur HOME : huit poses à 120 ms, 3 pixels par pose, sans rebond ajouté.
+Les 16 BMP du dragon et les 80 BMP des cinq marches V4 validées s'ajoutent aux
+33 anciens conservés : catalogue de 129 images, image W25Q64 de 476646 octets.
+Les 80 nouveaux BMP sont liés aux lots approuvés par `assets/tft/mascot_walks_approval.json`.
+Le lecteur HOME utilise la mascotte choisie à la création ; les autres états
+gardent sa pose immobile en attendant une phase artistique distincte.
+Les quatre cibles jeu/30s/programmeur/test stockage compilent ;
+aucun téléversement ni essai TFT effectué. Le handoff
+animation contient la décision prioritaire. Les six références restent intactes.
+
 Nettoyage du 9 septembre 2026 : les expérimentations de marche, leur lecteur,
 leurs tests et leur diagnostic ont été retirés du dépôt de travail. Le socle
 conserve le firmware v0.7, ses 33 assets de production et les dix environnements
@@ -10,8 +47,21 @@ PlatformIO historiques. Aucun téléversement n'a été effectué pendant ce net
 Les six références de mascottes sont recensées dans `design/README.md` : dragon
 de production et cinq modèles approuvés dans `design/mascots-v1/APPROVAL.json`.
 Leurs images, sources, aperçus et preuves d'approbation sont conservés.
-Le prochain chantier est le générateur déterministe hors ligne décrit dans
-`HANDOFF_CODEX_MOTEUR_ANIMATION_SPRITES.md` ; il n'est pas encore implémenté.
+Le générateur déterministe hors ligne décrit dans
+`HANDOFF_CODEX_MOTEUR_ANIMATION_SPRITES.md` est en cours dans `sprite-tool/`.
+La composition entière, les profils à six étapes, la CLI, les prévisualisations,
+l'approbation et les exports sont implémentés avec deux fixtures géométriques.
+Voir `sprite-tool/README.md` pour les commandes et `sprite-tool/ASSET_PREPARATION.md`
+pour le travail restant sur les vrais modèles. Un premier cycle de diagnostic du
+dragon utilise huit calques issus d'une keyframe de production, un patch explicite
+et des translations rigides. Les cinq autres modèles disposent aussi de calques
+et de cycles rigides candidats ; la génération des six produit 72 PNG et ses
+sorties sont comparées octet par octet dans les tests. Les raccords de queue
+exposés sont traités par des patches explicites. Voir `sprite-tool/mascots/README.md`.
+Les poses alternatives dessinées, la validation artistique des mouvements/vues
+latérales des cinq autres mascottes restent à réaliser. Ce diagnostic rigide n'est
+pas la direction retenue : le dragon sur rig est désormais approuvé et intégré
+au firmware (voir l'état en tête du document), mais pas encore vérifié sur TFT.
 Les validations matérielles ci-dessous concernent la v0.7, pas ce futur moteur.
 
 Le firmware actif est un projet PlatformIO Arduino C++ pour ESP32-C3. Le seul

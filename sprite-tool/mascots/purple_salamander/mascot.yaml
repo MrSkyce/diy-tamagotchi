@@ -1,0 +1,50 @@
+# Candidate rigid-piece motion of the approved frontal design.
+# This does not establish an approved side-view drawing or final gait.
+schema_version: 1
+id: purple_salamander
+canvas: {width: 112, height: 112, ground_y: 98}
+palette:
+  - '#04071B'
+  - '#070D28'
+  - '#0A0F30'
+  - '#12BAFA'
+  - '#2C0856'
+  - '#5C21AD'
+  - '#76FBFD'
+  - '#82FDFD'
+  - '#9512E5'
+  - '#9819BD'
+  - '#AD25F7'
+  - '#B026F7'
+  - '#CF78F9'
+  - '#D305DF'
+  - '#D486FA'
+  - '#DEA6FA'
+  - '#E1ACFA'
+  - '#E6B8FB'
+  - '#F8EFFC'
+animation_profiles:
+  walk: ../../profiles/rigid_walk.yaml
+layers:
+  - id: tail_root_patch
+    source: patches/tail_root.png
+    anchor: [0, 0]
+    z_index: 1
+  - id: tail
+    source: ../../prepared-layers/purple_salamander/tail.png
+    anchor: [0, 0]
+    z_index: 0
+  - id: far_leg
+    source: ../../prepared-layers/purple_salamander/far_leg.png
+    anchor: [0, 0]
+    track: far_leg
+    z_index: 5
+  - id: near_leg
+    source: ../../prepared-layers/purple_salamander/near_leg.png
+    anchor: [0, 1]
+    track: near_leg
+    z_index: 10
+  - id: body
+    source: ../../prepared-layers/purple_salamander/body.png
+    anchor: [0, 0]
+    z_index: 20

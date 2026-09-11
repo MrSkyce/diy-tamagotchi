@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "status": "approved_skinned_walk",
+  "reviewed_by": "user",
+  "evidence": "oui, validé.",
+  "scope": "Cycle habillé corrigé, huit poses et taille native ; miroir gauche déterministe.",
+  "approved_manifest_sha256": "d32ce58e31b2abb336353145fa4baf81169e86ec9f9a380a50a60139b17734ee",
+  "frame_count": 8,
+  "duration_ms": 120,
+  "travel_pixels_per_frame": 3,
+  "visible_pixel_range": [
+    2306,
+    2378
+  ],
+  "files_sha256": {
+    "dragon_rigged_walk_left_01.bmp": "5d41ae1e1dabe1b34ab4d19f005311b511e096757534889bbc834dc6095e083f",
+    "dragon_rigged_walk_left_02.bmp": "c11ac17170493ee90c748138c740e01a0829f57e9fbc57972b5b0cb881301076",
+    "dragon_rigged_walk_left_03.bmp": "55ee23658d98d654566a1d9486f3851f925530685b7ff540ab2821d536bc7ad4",
+    "dragon_rigged_walk_left_04.bmp": "19dcbb60ae5dc2185d2e7acbf42e0430bd316290b6039f340be32fd36d75466a",
+    "dragon_rigged_walk_left_05.bmp": "465d84194eb1292a1bf102f1d2a98bd2940c736e37f61a19911cd24930150f74",
+    "dragon_rigged_walk_left_06.bmp": "95ed5e0a7b925478dac09582de5f00a824c35618da24f4309d7bed40a7d4a010",
+    "dragon_rigged_walk_left_07.bmp": "d5ed6f14376f7dd018e230b154ac6c6658a1b0596c11d6d508ee9ccf8b6d0189",
+    "dragon_rigged_walk_left_08.bmp": "5cb3f84c4e34de6ed26fed5579c85c8f14d6240b2c6bd5b3b6c107998d9d8212",
+    "dragon_rigged_walk_right_01.bmp": "36f856aafd003bd4839d449f191390570d6a04248d8308d9926e079f8a0974a5",
+    "dragon_rigged_walk_right_02.bmp": "effa25c30a1de8ea4be10da28f110bc9de9f06f0eb5ad683f5f2b0fbbf7e6b32",
+    "dragon_rigged_walk_right_03.bmp": "125629c38a6a69b2fc72608968c8211c99b376c0052eff48124bc4cf7f23cb9e",
+    "dragon_rigged_walk_right_04.bmp": "5e85e780835c803ce7ad2e0f97667d72ba8f3c5954f22ffdcd4fc39ba4229247",
+    "dragon_rigged_walk_right_05.bmp": "7c48cc92295cf86ff2cafb83cfea111ee25b3643fe4fa461932299dc37904a91",
+    "dragon_rigged_walk_right_06.bmp": "71c0874f1177c5c1cdc1d24cb05943f36e47b53611e24bfdc4c61cffb825723d",
+    "dragon_rigged_walk_right_07.bmp": "2d1eb63615215fa66add80f2a753837eb7aca7150749972fe0e16b6d38589931",
+    "dragon_rigged_walk_right_08.bmp": "b7560165f279f6f4cdc15ee5ce7710c33b2989814a5c3cd74091dcc3eba6f900"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "status": "approved_art_reference_only",
+  "reviewed_by": "user",
+  "evidence": "top",
+  "scope": "Habillage de référence V3 avec griffes au bout de la patte arrière et queue séparée.",
+  "files_sha256": {
+    "art-candidates/skin-keypose-v3.png": "de98c86a80328965bf58d5bda0c7e6a085c050c24baa7a6712277c4b5f661c9f"
+  },
+  "excludes": ["cycle habillé de huit poses", "réduction sur grille native", "export firmware", "validation ST7789"]
+}

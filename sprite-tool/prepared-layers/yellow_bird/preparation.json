@@ -1,0 +1,145 @@
+{
+  "exact_recomposition": true,
+  "explicitly_cleared_pixels": [
+    [
+      60,
+      11
+    ],
+    [
+      27,
+      31
+    ],
+    [
+      28,
+      31
+    ],
+    [
+      29,
+      31
+    ],
+    [
+      82,
+      31
+    ],
+    [
+      83,
+      31
+    ],
+    [
+      84,
+      31
+    ],
+    [
+      85,
+      31
+    ],
+    [
+      94,
+      56
+    ],
+    [
+      94,
+      57
+    ],
+    [
+      94,
+      58
+    ],
+    [
+      94,
+      59
+    ],
+    [
+      94,
+      60
+    ],
+    [
+      94,
+      61
+    ],
+    [
+      94,
+      62
+    ],
+    [
+      18,
+      80
+    ],
+    [
+      19,
+      80
+    ],
+    [
+      92,
+      80
+    ],
+    [
+      93,
+      80
+    ],
+    [
+      17,
+      82
+    ],
+    [
+      94,
+      82
+    ],
+    [
+      30,
+      96
+    ],
+    [
+      30,
+      97
+    ],
+    [
+      30,
+      98
+    ],
+    [
+      47,
+      98
+    ],
+    [
+      49,
+      98
+    ],
+    [
+      30,
+      99
+    ],
+    [
+      47,
+      99
+    ]
+  ],
+  "files": {
+    "body.png": "ff87859c4a44791397c0e1caf3d79b368da283a58485d3ab9aefd2f3a21ba136",
+    "far_leg.png": "fa4c7e1142c19a3e192932381913d5db5eb34797f97bb67af21f50477a12f1ef",
+    "far_wing.png": "f3ceaa75a48743bdb994943220e6aee3f30133bf9dd8c2003b06c2b8395c8830",
+    "layers.png": "de77c9ef834b24778607f4b54c6707c4e59aa050f65f029f772394ff469a363d",
+    "near_leg.png": "3a1198bb60678c3464a5a13d7ab9c88e44053a3c69733abd49bb6ae96409c6a0",
+    "near_wing.png": "c7d2b77c1456948a31ed35be699aa83887415204ebef59a8341b843d44b2bf8a",
+    "recomposed.png": "46d09c4f33ba8b38ca93fcda4983caf1682f5bbde70012788a2cefbacadd9c67"
+  },
+  "layers_in_sheet_order": [
+    "far_wing",
+    "near_wing",
+    "near_leg",
+    "far_leg",
+    "body"
+  ],
+  "mascot": "yellow_bird",
+  "recomposition_pixel_sha256": "2b12dfc75f0e54d9a989f9d34a18589029d9625028d204cacf650170f2c836ac",
+  "remaining_work": [
+    "review anatomical cuts",
+    "draw occluded surfaces",
+    "draw alternative poses",
+    "review animated movement"
+  ],
+  "schema_version": 1,
+  "source_sha256": "59c89b4bb28a7c844bfd931635af4bf9e9a88fa6ab2bf871fa9b98db28a1c53c",
+  "spec_sha256": "d2d3b416f05df393ce4005c0d56c7921b59577d644f5e9b720a7fefa1c635c7c",
+  "status": "initial_layers_review_pending"
+}

@@ -10,9 +10,11 @@
 #include "config.h"
 #include "external_flash.h"
 #include "generated_tft_assets.h"
+#include "mascot_walks.h"
 #include "persistence.h"
 #include "rtc_clock.h"
 #include "tft_asset_store.h"
+#include "walk_cycle.h"
 
 Adafruit_ST7789 spiTft(&SPI, TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
 W25Q64Flash externalFlash;
@@ -109,6 +111,7 @@ constexpr unsigned long BABY_STAGE_DURATION = 5UL * 60UL * 1000UL;
 constexpr unsigned long YOUNG_STAGE_DURATION = 15UL * 60UL * 1000UL;
 
 struct Pet {
+  MascotId mascot = MascotId::DRAGON;
   int hunger = 80;
   int happiness = 80;
   int health = 100;
@@ -123,6 +126,10 @@ struct Pet {
 };
 Pet pet;
 bool petRestored = false;
+bool creationPending = false;
+bool startupSaveError = false;
+bool creationWriteFailed = false;
+uint8_t lastCreationPhase = 255;
 uint64_t petAgeAtBootMs = 0;
 unsigned long petAgeBootMillis = 0;
 uint32_t restoredRtcElapsedSeconds = 0;
@@ -225,16 +232,11 @@ constexpr uint32_t MAX_RTC_ELAPSED_SECONDS = 366UL * 24UL * 60UL * 60UL;
 constexpr uint32_t MAX_OFFLINE_SIMULATION_SECONDS = 24UL * 60UL * 60UL;
 
 unsigned long lastAnimTick = 0;
-unsigned long lastMoveTick = 0;
 unsigned long lastBlinkTick = 0;
 constexpr unsigned long ANIM_FRAME_INTERVAL = 180;
-constexpr unsigned long CREATURE_MOVE_INTERVAL = 120;
 constexpr unsigned long BLINK_INTERVAL = 3500;
 constexpr unsigned long BLINK_DURATION = 140;
-constexpr int CREATURE_MIN_X = 4;
-constexpr int CREATURE_MAX_X = 84;
-int creatureX = 44;
-bool creatureMoveRight = true;
+WalkCycle homeWalk;
 bool creatureBlink = false;
 unsigned long blinkStart = 0;
 uint8_t animationPhase = 0;
@@ -415,6 +417,12 @@ TftDragonFrame tftAnimatedPair(TftAssetId first, TftAssetId second,
 }
 
 TftDragonFrame currentTftHomeDragonFrame() {
+  if (pet.mascot != MascotId::DRAGON) {
+    const bool walking = homeWalkEnabled(true, pet.lifeStage != STAGE_EGG,
+        pet.health, pet.hunger, pet.happiness, pet.fatigue, creatureBlink);
+    return {mascotWalkFrame(pet.mascot, homeWalk.right(),
+                            walking && !homeWalk.turning() ? homeWalk.phase() : 0)};
+  }
   if (pet.health < 30) return {TftAssetId::DRAGON_SICK};
   if (pet.hunger < 25) return {TftAssetId::DRAGON_HUNGRY};
   if (pet.happiness < 25) return {TftAssetId::DRAGON_SAD};
@@ -424,24 +432,15 @@ TftDragonFrame currentTftHomeDragonFrame() {
   }
   if (creatureBlink) return {TftAssetId::DRAGON_BLINK};
   if (pet.happiness >= 95) return {TftAssetId::DRAGON_HAPPY};
-  if (creatureX <= CREATURE_MIN_X + 2 ||
-      creatureX >= CREATURE_MAX_X - 2) {
+  if (homeWalk.turning()) {
     return tftAnimatedPair(TftAssetId::DRAGON_IDLE1,
                            TftAssetId::DRAGON_IDLE2, animationPhase);
   }
-  if (creatureMoveRight) {
-    return tftAnimatedPair(TftAssetId::DRAGON_WALK_RIGHT_01,
-                           TftAssetId::DRAGON_WALK_RIGHT_02,
-                           animationPhase);
-  }
-  return tftAnimatedPair(TftAssetId::DRAGON_WALK_LEFT_01,
-                         TftAssetId::DRAGON_WALK_LEFT_02,
-                         animationPhase);
+  return {mascotWalkFrame(MascotId::DRAGON, homeWalk.right(), homeWalk.phase())};
 }
 
 int16_t tftCreatureX() {
-  return map(creatureX, CREATURE_MIN_X, CREATURE_MAX_X, 4,
-             TFT_WIDTH - TFT_ASSET_WIDTH - 4);
+  return homeWalk.x();
 }
 
 bool tftPointInCircle(int16_t x, int16_t y, int16_t centerX,
@@ -626,6 +625,8 @@ void drawTftHomeNative() {
 }
 
 TftDragonFrame currentTftActionFrame() {
+  // Temporary identity-preserving fallback, not a new approved action animation.
+  if (pet.mascot != MascotId::DRAGON) return {mascotWalkFrame(pet.mascot, true, 0)};
   const uint8_t phase =
       ((millis() - screenTimer) / ANIM_FRAME_INTERVAL) % 4;
   switch (currentScreen) {
@@ -758,7 +759,8 @@ void drawTftSleepNoticeNative() {
   if (pet.lifeStage == STAGE_EGG) {
     drawTftSpriteOnSolid(tftRollingEggFrame(0), 64, 58, NIGHT_BACKGROUND);
   } else {
-    drawTftDragonOnSolid({TftAssetId::DRAGON_SLEEPING}, 58,
+    drawTftDragonOnSolid({pet.mascot == MascotId::DRAGON ? TftAssetId::DRAGON_SLEEPING
+                          : mascotWalkFrame(pet.mascot, true, 0)}, 58,
                          NIGHT_BACKGROUND);
   }
   drawTftCenteredText("Zzz...", 184, 2, 0xDE7F);
@@ -789,7 +791,7 @@ void drawTftBootNative() {
   if (phaseChanged) {
     spiTft.fillScreen(BOOT_BACKGROUND);
     spiTft.fillRect(0, 0, TFT_WIDTH, 34, 0x4810);
-    drawTftCenteredText("DRAGON TAMAGOTCHI", 10, 2, ST77XX_WHITE);
+    drawTftCenteredText("TAMAGOTCHI", 10, 2, ST77XX_WHITE);
     lastPhase = static_cast<int>(bootPhase);
     lastRollX = -1;
   }
@@ -810,7 +812,8 @@ void drawTftBootNative() {
       drawTftSpriteOnSolid(tftRollingEggFrame(0), 64, 56, BOOT_BACKGROUND);
       drawTftCenteredText("OK: WARM ME", 190, 2, ST77XX_WHITE);
     } else {
-      drawTftSpriteOnSolid({TftAssetId::DRAGON_IDLE1}, 64, 52,
+      drawTftSpriteOnSolid({pet.mascot == MascotId::DRAGON ? TftAssetId::DRAGON_IDLE1
+                            : mascotWalkFrame(pet.mascot, true, 0)}, 64, 52,
                            BOOT_BACKGROUND);
       drawTftCenteredText(petRestored ? "WELCOME BACK!" : "HELLO!", 188, 2,
                           ST77XX_WHITE);
@@ -911,7 +914,8 @@ void drawTftUi() {
   if (nativeSleepNotice) {
     drawTftSleepNoticeNative();
     lastTftScreen = -1;
-    lastTftAsset = TftAssetId::DRAGON_SLEEPING;
+    lastTftAsset = pet.mascot == MascotId::DRAGON ? TftAssetId::DRAGON_SLEEPING
+                    : mascotWalkFrame(pet.mascot, true, 0);
     lastTftDragonYOffset = 0;
     return;
   }
@@ -1077,6 +1081,7 @@ bool saveCurrentPet() {
       petAgeMs(),
       pet.stageStartedAgeMs,
       rtcUnixTime,
+      static_cast<uint8_t>(pet.mascot),
   };
   if (!savePetSave(data)) {
     Serial.println("Pet save failed");
@@ -1587,17 +1592,6 @@ void updateCreatureAnimation() {
     animationPhase = (animationPhase + 1) % 4;
     redraw = true;
   }
-  if (now - lastMoveTick >= CREATURE_MOVE_INTERVAL) {
-    lastMoveTick = now;
-    if (creatureMoveRight) {
-      creatureX++;
-      if (creatureX >= CREATURE_MAX_X) creatureMoveRight = false;
-    } else {
-      creatureX--;
-      if (creatureX <= CREATURE_MIN_X) creatureMoveRight = true;
-    }
-    redraw = true;
-  }
   if (!creatureBlink && now - lastBlinkTick >= BLINK_INTERVAL) {
     creatureBlink = true;
     blinkStart = now;
@@ -1608,6 +1602,10 @@ void updateCreatureAnimation() {
     creatureBlink = false;
     redraw = true;
   }
+  const bool walking = homeWalkEnabled(
+      currentScreen == SCREEN_MAIN, pet.lifeStage != STAGE_EGG,
+      pet.health, pet.hunger, pet.happiness, pet.fatigue, creatureBlink);
+  if (homeWalk.update(now, walking)) redraw = true;
   if (!redraw) return;
   if (currentScreen == SCREEN_MAIN) drawMainScreen();
   else if (currentScreen == SCREEN_FOOD) drawFoodScreen();
@@ -1714,6 +1712,69 @@ void handleButtons() {
   }
 }
 
+void drawStartupSaveError() {
+  spiTft.fillScreen(0x1085);
+  drawTftCenteredText("SAVE PROTECTED", 30, 2, ST77XX_RED);
+  drawTftCenteredText("Read/write error", 82, 1, ST77XX_WHITE);
+  drawTftCenteredText("No data overwritten", 103, 1, ST77XX_WHITE);
+  drawTftCenteredText("OK: retry boot", 150, 1, ST77XX_CYAN);
+  drawTftCenteredText("L+R 5s: ERASE PET", 190, 1, ST77XX_RED);
+}
+
+void drawCreationChoice(uint8_t phase) {
+  constexpr uint16_t background = 0x1085;
+  spiTft.fillScreen(background);
+  drawTftCenteredText("CHOOSE YOUR PET", 12, 2, ST77XX_CYAN);
+  if (tftAssetsReady) {
+    drawTftSpriteOnSolid({mascotWalkFrame(pet.mascot, true, phase)}, 64, 42, background);
+  } else {
+    drawTftCenteredText("ASSETS UNAVAILABLE", 90, 1, ST77XX_RED);
+  }
+  drawTftCenteredText(mascotWalk(pet.mascot).label, 166, 2, ST77XX_WHITE);
+  drawTftCenteredText("< LEFT     RIGHT >", 196, 1, ST77XX_WHITE);
+  drawTftCenteredText(creationWriteFailed ? "SAVE FAILED - OK RETRY" : "OK: CREATE (FINAL CHOICE)",
+                      218, 1, creationWriteFailed ? ST77XX_RED : ST77XX_CYAN);
+  lastCreationPhase = phase;
+}
+
+void updateStartupChoice() {
+  const uint32_t now = millis();
+  const bool left = buttonPressed(leftButton, now);
+  const bool right = buttonPressed(rightButton, now);
+  const bool ok = buttonPressed(okButton, now);
+  if (handleResetChord(now)) return;
+  if (startupSaveError) {
+    if (ok) esp_restart();
+    return;
+  }
+  if (left != right) {
+    const uint8_t count = static_cast<uint8_t>(MascotId::COUNT);
+    pet.mascot = static_cast<MascotId>((static_cast<uint8_t>(pet.mascot) +
+                                      (right ? 1 : count-1)) % count);
+    lastCreationPhase = 255;
+  }
+  if (ok && tftAssetsReady) {
+    // No simulation or NVS pet record exists before confirmation. Start its
+    // age and all decay clocks now, not when the choice screen first appeared.
+    petAgeAtBootMs = 0;
+    petAgeBootMillis = now;
+    lastHungerTick = lastHappyTick = lastHealthTick = now;
+    lastCleanlinessTick = lastFatigueTick = now;
+    lastAnimTick = lastBlinkTick = lastUserActivityAt = now;
+    if (saveCurrentPet()) {
+      creationPending = false;
+      creationWriteFailed = false;
+      soundOk();
+      startBootAnimation();
+      return;
+    }
+    creationWriteFailed = true;
+    lastCreationPhase = 255;
+  }
+  const uint8_t phase = (now / WalkCycle::kDurationMs) % WalkCycle::kFrames;
+  if (phase != lastCreationPhase) drawCreationChoice(phase);
+}
+
 void setup() {
   gpio_deep_sleep_hold_dis();
   gpio_hold_dis(static_cast<gpio_num_t>(TFT_BLK_PIN));
@@ -1742,8 +1803,16 @@ void setup() {
   }
 
   PetSaveData restoredData{};
-  petRestored = loadPetSave(restoredData);
+  const PetLoadStatus loadStatus = readPetSave(restoredData);
+  petRestored = loadStatus == PetLoadStatus::Loaded;
+  if (!petRestored && loadStatus != PetLoadStatus::Missing) {
+    startupSaveError = true;
+    Serial.println("Save read failed: preserving NVS; explicit retry/reset required");
+    drawStartupSaveError();
+    return;
+  }
   if (petRestored) {
+    pet.mascot = static_cast<MascotId>(restoredData.mascot);
     pet.hunger = restoredData.hunger;
     pet.happiness = restoredData.happiness;
     pet.health = restoredData.health;
@@ -1797,7 +1866,6 @@ void setup() {
   lastCleanlinessTick = now;
   lastFatigueTick = now;
   lastAnimTick = now;
-  lastMoveTick = now;
   lastBlinkTick = now;
   lastPetSaveAt = now;
   lastUserActivityAt = now;
@@ -1805,7 +1873,16 @@ void setup() {
 
   // Save once after boot to establish a fresh RTC anchor and avoid replaying
   // already-applied offline time after an immediate reset.
-  saveCurrentPet();
+  if (!petRestored) {
+    creationPending = true;
+    drawCreationChoice(0);
+    return;
+  }
+  if (!saveCurrentPet()) {
+    startupSaveError = true;
+    drawStartupSaveError();
+    return;
+  }
 
   startBootAnimation();
   Serial.println("Dragon Tamagotchi started");
@@ -1813,6 +1890,11 @@ void setup() {
 
 void loop() {
   updateAudio();
+  if (startupSaveError || creationPending) {
+    updateStartupChoice();
+    delay(5);
+    return;
+  }
   if (bootPhase != BOOT_DONE) {
     updateBootAnimation();
     delay(5);

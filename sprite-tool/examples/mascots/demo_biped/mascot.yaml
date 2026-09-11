@@ -1,0 +1,50 @@
+schema_version: 1
+id: demo_biped
+canvas:
+  width: 32
+  height: 32
+  ground_y: 27
+palette:
+- '#182238'
+- '#2890E0'
+- '#F8D030'
+- '#E05040'
+animation_profiles:
+  walk: ../../../profiles/biped.yaml
+layers:
+- id: body
+  source: body.png
+  anchor:
+  - 9
+  - 14
+  z_index: 20
+- id: head
+  source: head.png
+  anchor:
+  - 8
+  - -4
+  parent: body
+  track: head
+  z_index: 30
+- id: near_leg
+  source: leg_neutral.png
+  anchor:
+  - 15
+  - 20
+  z_index: 40
+  track: near_leg
+  poses:
+    forward: leg_forward.png
+    neutral: leg_neutral.png
+    backward: leg_backward.png
+- id: far_leg
+  source: leg_neutral.png
+  anchor:
+  - 11
+  - 20
+  z_index: 10
+  track: far_leg
+  poses:
+    forward: leg_forward.png
+    neutral: leg_neutral.png
+    backward: leg_backward.png

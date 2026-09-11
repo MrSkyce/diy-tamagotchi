@@ -1,0 +1,125 @@
+{
+  "errors": [],
+  "frames": [
+    {
+      "bounds": [
+        22,
+        21,
+        84,
+        105
+      ],
+      "component_sizes": [
+        2475
+      ],
+      "index": 0,
+      "pixel_sha256": "5ec3fb78efe0c7c56b3ef0903e1ccb0985d6cc9d818dbcf44a3e59719289d1be",
+      "visible_pixels": 2475
+    },
+    {
+      "bounds": [
+        22,
+        22,
+        84,
+        105
+      ],
+      "component_sizes": [
+        2410
+      ],
+      "index": 1,
+      "pixel_sha256": "67a0304e2b7f69d520c919f791921c4a3aee06bd7940c5c64eab30765258901a",
+      "visible_pixels": 2410
+    },
+    {
+      "bounds": [
+        22,
+        21,
+        84,
+        105
+      ],
+      "component_sizes": [
+        2402
+      ],
+      "index": 2,
+      "pixel_sha256": "8fec1a7cc1e20e1afb92ed044d5279a9c3e7c5e122b70be5c12bd1cc4dc8847e",
+      "visible_pixels": 2402
+    },
+    {
+      "bounds": [
+        22,
+        20,
+        84,
+        105
+      ],
+      "component_sizes": [
+        2466
+      ],
+      "index": 3,
+      "pixel_sha256": "7f24dbcee564c55b6d9ca404e899392480429057ae12b165780b5660d7b475cd",
+      "visible_pixels": 2466
+    },
+    {
+      "bounds": [
+        22,
+        21,
+        84,
+        105
+      ],
+      "component_sizes": [
+        2475
+      ],
+      "index": 4,
+      "pixel_sha256": "ec0dcde390f10f62458fe1ec5fd97f8f2cab3e861eac970cdab0820b2fefd2dd",
+      "visible_pixels": 2475
+    },
+    {
+      "bounds": [
+        22,
+        22,
+        84,
+        105
+      ],
+      "component_sizes": [
+        2410
+      ],
+      "index": 5,
+      "pixel_sha256": "07cf9498dda54c07e219c6eea48a95992faa8cb1dd3950965d57ee7f7ef2240a",
+      "visible_pixels": 2410
+    },
+    {
+      "bounds": [
+        22,
+        21,
+        84,
+        105
+      ],
+      "component_sizes": [
+        2402
+      ],
+      "index": 6,
+      "pixel_sha256": "aec21df11eac1f1eb1fe3c762e967e08f45ca27d416108ebe0885176b8c3f001",
+      "visible_pixels": 2402
+    },
+    {
+      "bounds": [
+        22,
+        20,
+        84,
+        105
+      ],
+      "component_sizes": [
+        2466
+      ],
+      "index": 7,
+      "pixel_sha256": "e927a6bf1c397f29f2ff99b6b780db5d03572582464619fef18b5eeb0f8cc3b2",
+      "visible_pixels": 2466
+    }
+  ],
+  "loop_seam_changed_pixels": 943,
+  "mask_bytes_both_directions": 25088,
+  "rgb565_bytes_both_directions": 401408,
+  "status": "candidate",
+  "unique_poses": 8,
+  "warnings": [
+    "Human review required: foot contact, limb connections and loop readability."
+  ]
+}

@@ -1,0 +1,53 @@
+# Candidate rigid-piece motion of the approved frontal design.
+# This does not establish an approved side-view drawing or final gait.
+schema_version: 1
+id: green_mouse
+canvas: {width: 112, height: 112, ground_y: 98}
+palette:
+  - '#04112A'
+  - '#050F2B'
+  - '#05131E'
+  - '#1B9D3B'
+  - '#2FA948'
+  - '#30294E'
+  - '#3ED4F5'
+  - '#44938C'
+  - '#4ECA39'
+  - '#5DD43E'
+  - '#5DD442'
+  - '#60D53F'
+  - '#61D541'
+  - '#6FD763'
+  - '#A208AF'
+  - '#A4E591'
+  - '#CAF6AE'
+  - '#D409D8'
+  - '#D5FAB8'
+  - '#E20AE4'
+  - '#E4FBBA'
+  - '#F8FCF2'
+animation_profiles:
+  walk: ../../profiles/rigid_walk.yaml
+layers:
+  - id: tail_root_patch
+    source: patches/tail_root.png
+    anchor: [0, 0]
+    z_index: 1
+  - id: tail
+    source: ../../prepared-layers/green_mouse/tail.png
+    anchor: [0, 0]
+    z_index: 0
+  - id: far_leg
+    source: ../../prepared-layers/green_mouse/far_leg.png
+    anchor: [0, 0]
+    track: far_leg
+    z_index: 5
+  - id: near_leg
+    source: ../../prepared-layers/green_mouse/near_leg.png
+    anchor: [0, 0]
+    track: near_leg
+    z_index: 10
+  - id: body
+    source: ../../prepared-layers/green_mouse/body.png
+    anchor: [0, 0]
+    z_index: 20

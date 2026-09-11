@@ -1,0 +1,36 @@
+# Six-phase diagnostic using rigid pieces. No deformation or invented pixels.
+# Art review must replace this diagnostic with drawn limb poses where needed.
+schema_version: 1
+id: rigid_walk
+animation: walk
+frames: 6
+duration_ms: 120
+tracks:
+  near_leg:
+    - {offset: [2, 0]}
+    - {offset: [0, 0]}
+    - {offset: [-2, 0]}
+    - {offset: [-2, -3]}
+    - {offset: [0, -5]}
+    - {offset: [2, -3]}
+  far_leg:
+    - {offset: [-2, -3]}
+    - {offset: [0, -5]}
+    - {offset: [2, -3]}
+    - {offset: [2, 0]}
+    - {offset: [0, 0]}
+    - {offset: [-2, 0]}
+  near_arm:
+    - {offset: [-1, 0]}
+    - {offset: [0, 0]}
+    - {offset: [1, 0]}
+    - {offset: [1, 0]}
+    - {offset: [0, 0]}
+    - {offset: [-1, 0]}
+  far_arm:
+    - {offset: [1, 0]}
+    - {offset: [0, 0]}
+    - {offset: [-1, 0]}
+    - {offset: [-1, 0]}
+    - {offset: [0, 0]}
+    - {offset: [1, 0]}

@@ -1,0 +1,81 @@
+# First real-input integration candidate, not an artistically approved walk.
+# The identity layers stay fixed; limb silhouettes are translated rigidly.
+schema_version: 1
+id: dragon
+canvas:
+  width: 112
+  height: 112
+  ground_y: 104
+palette:
+  - '#026294'
+  - '#03B0FC'
+  - '#040B2B'
+  - '#06051D'
+  - '#11E3FD'
+  - '#330E35'
+  - '#421D5F'
+  - '#54F8FB'
+  - '#602617'
+  - '#A805AC'
+  - '#A83C0C'
+  - '#C6A04E'
+  - '#D0340A'
+  - '#D5600F'
+  - '#D5A11A'
+  - '#D603D7'
+  - '#F8D54B'
+  - '#FB3C03'
+  - '#FB4704'
+  - '#FBB004'
+  - '#FBD605'
+  - '#FC9704'
+  - '#FCB936'
+  - '#FCF377'
+  - '#FCF684'
+  - '#FD6D03'
+  - '#FDD522'
+  - '#FDEA5C'
+  - '#FDFCFD'
+animation_profiles:
+  walk: ../../profiles/rigid_walk.yaml
+layers:
+  - id: tail
+    source: ../../prepared-layers/dragon/tail.png
+    anchor: [0, 0]
+    z_index: 0
+  - id: wings
+    source: ../../prepared-layers/dragon/wings.png
+    anchor: [0, 0]
+    z_index: 5
+  - id: far_leg
+    source: ../../prepared-layers/dragon/far_leg.png
+    anchor: [0, 4]
+    track: far_leg
+    z_index: 10
+  - id: hip_patch
+    source: patches/hip.png
+    anchor: [0, 0]
+    z_index: 8
+  - id: near_leg
+    source: ../../prepared-layers/dragon/near_leg.png
+    anchor: [0, 0]
+    track: near_leg
+    z_index: 15
+  - id: far_arm
+    source: ../../prepared-layers/dragon/far_arm.png
+    anchor: [0, 0]
+    track: far_arm
+    z_index: 10
+  - id: body
+    source: ../../prepared-layers/dragon/body.png
+    anchor: [0, 0]
+    z_index: 20
+  - id: near_arm
+    source: ../../prepared-layers/dragon/near_arm.png
+    anchor: [0, 0]
+    track: near_arm
+    z_index: 25
+  - id: head
+    source: ../../prepared-layers/dragon/head.png
+    anchor: [0, 0]
+    z_index: 30

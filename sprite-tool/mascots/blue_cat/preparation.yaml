@@ -1,0 +1,15 @@
+# Explicit manual cut selections. Anatomical/movement review is still pending.
+schema_version: 1
+id: blue_cat
+source: ../../references/blue_cat/neutral.png
+source_sha256: 0f96e8914622dcca56a45334ef79766e8a3d32b5fd59a44c5c6577eda187fd75
+remainder: body
+# Background-connected cleanup only; interior colors are not removed.
+clear_pixels: [[26,12],[27,12],[28,12],[29,12],[30,12],[31,12],[81,12],[82,12],[83,12],[84,12],[85,12],[80,13],[34,14],[34,15],[38,19],[73,19],[70,21],[71,21],[47,23],[47,24],[24,72],[24,73],[103,86],[86,87],[87,87],[88,87],[101,90],[101,91],[45,96],[66,96],[64,97],[66,97],[68,98],[68,99]]
+parts:
+  - id: tail
+    polygon: [[85,69],[107,69],[107,98],[83,98],[79,91]]
+  - id: near_leg
+    polygon: [[71,80],[84,80],[86,99],[65,102],[62,94]]
+  - id: far_leg
+    polygon: [[24,75],[44,75],[51,94],[51,102],[24,102]]

@@ -1,0 +1,51 @@
+{
+  "animation_profiles": {
+    "walk": "profile.yaml"
+  },
+  "canvas": {
+    "ground_y": 104,
+    "height": 112,
+    "width": 112
+  },
+  "id": "red_dog_rigged_feet_v3",
+  "layers": [
+    {
+      "anchor": [
+        0,
+        0
+      ],
+      "id": "rig_skin",
+      "poses": {
+        "pose_00": "pose_00.png",
+        "pose_01": "pose_01.png",
+        "pose_02": "pose_02.png",
+        "pose_03": "pose_03.png",
+        "pose_04": "pose_04.png",
+        "pose_05": "pose_05.png",
+        "pose_06": "pose_06.png",
+        "pose_07": "pose_07.png"
+      },
+      "source": "pose_00.png",
+      "track": "poses",
+      "z_index": 0
+    }
+  ],
+  "palette": [
+    "#100020",
+    "#FFFFFF",
+    "#C0F8FF",
+    "#40E8FF",
+    "#00B8F0",
+    "#0078C8",
+    "#004088",
+    "#082050",
+    "#FF2020",
+    "#B82018",
+    "#FFF0A0",
+    "#FF5040",
+    "#E80808",
+    "#FFB060",
+    "#FFE080"
+  ],
+  "schema_version": 1
+}

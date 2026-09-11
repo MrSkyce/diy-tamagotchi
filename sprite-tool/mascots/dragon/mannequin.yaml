@@ -1,0 +1,22 @@
+# Motion-study configuration, not approved art. Pixel units; volumes relative to hip.
+ground: 104
+hip_x: 56
+hip_y: 80
+thigh: 12
+shin: 12
+foot_height: 3
+travel_per_frame: 3
+duration_ms: 120
+shoulder: [2, -15]
+upper_arm: 8
+forearm: 8
+hand_drop: 14
+arm_swing: 0.7
+foot_x: [6, 3, 0, -3, -6, -4, 0, 5]
+foot_lift: [0, 0, 0, 0, 2, 6, 8, 5]
+bob: [0, 1, 0, -1, 0, 1, 0, -1]
+torso: [-13, -20, 14, 6]
+head: [-13, -51, 21, -15]
+muzzle: [13, -33, 28, -22]
+tail: [[-4, -2], [-22, 8], [-39, 2], [-26, 14], [-1, 7]]
+wing: [[-11, -14], [-26, -21], [-24, -4], [-13, -7]]

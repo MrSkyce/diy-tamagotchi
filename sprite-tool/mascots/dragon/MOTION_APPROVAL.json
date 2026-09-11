@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "status": "approved_motion_only",
+  "reviewed_by": "user",
+  "date": "2026-09-09",
+  "evidence": "marche parfaite",
+  "scope": "Marche du mannequin de dragon : huit poses à 120 ms et déplacement de 3 pixels par pose.",
+  "excludes": ["habillage pixel art", "autres mascottes", "export firmware", "validation ST7789"],
+  "files_sha256": {
+    "mannequin.yaml": "bc6bf655512663a4f82cc47dee3900ecd5a8b3cf0109d70d54bfc01da20df3e1",
+    "motion-reference/motion.json": "c3dd4287698ba48be07b972f119b94edb43240d978767118fce41e1c6c152650",
+    "motion-reference/travel.gif": "b8f5ccb82c25f092d61caa3068d49f0980fe038d903ce0ef1ca2cc1e9e8cca61",
+    "motion-reference/walk.gif": "24497a8a8d8207d1bf9b2e67d2e473a296ddb3ef33c54d4b448b9671915634db",
+    "motion-reference/skeleton.gif": "d7bae9fc6626a518bf0cea439af8653c02379d741aac3588234195afe015f563"
+  },
+  "note": "Les fichiers générés restent inchangés avec leur statut initial ; cette approbation séparée documente la décision humaine ultérieure."
+}

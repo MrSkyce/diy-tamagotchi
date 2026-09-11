@@ -1,0 +1,72 @@
+schema_version: 1
+id: demo_quadruped
+canvas:
+  width: 32
+  height: 32
+  ground_y: 27
+palette:
+- '#182238'
+- '#2890E0'
+- '#F8D030'
+- '#E05040'
+animation_profiles:
+  walk: ../../../profiles/quadruped.yaml
+layers:
+- id: body
+  source: body.png
+  anchor:
+  - 9
+  - 14
+  z_index: 20
+- id: head
+  source: head.png
+  anchor:
+  - 8
+  - -4
+  parent: body
+  track: head
+  z_index: 30
+- id: near_leg
+  source: leg_neutral.png
+  anchor:
+  - 15
+  - 20
+  z_index: 40
+  track: front_near
+  poses:
+    forward: leg_forward.png
+    neutral: leg_neutral.png
+    backward: leg_backward.png
+- id: far_leg
+  source: leg_neutral.png
+  anchor:
+  - 11
+  - 20
+  z_index: 10
+  track: front_far
+  poses:
+    forward: leg_forward.png
+    neutral: leg_neutral.png
+    backward: leg_backward.png
+- id: rear_near
+  source: leg_neutral.png
+  anchor:
+  - 7
+  - 20
+  z_index: 40
+  track: rear_near
+  poses:
+    forward: leg_forward.png
+    neutral: leg_neutral.png
+    backward: leg_backward.png
+- id: rear_far
+  source: leg_neutral.png
+  anchor:
+  - 5
+  - 20
+  z_index: 10
+  track: rear_far
+  poses:
+    forward: leg_forward.png
+    neutral: leg_neutral.png
+    backward: leg_backward.png

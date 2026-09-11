@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "id", "canvas", "palette", "animation_profiles", "layers"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"$ref": "#/$defs/id"},
+    "canvas": {
+      "type": "object", "additionalProperties": false,
+      "required": ["width", "height", "ground_y"],
+      "properties": {
+        "width": {"type": "integer", "minimum": 1, "maximum": 512},
+        "height": {"type": "integer", "minimum": 1, "maximum": 512},
+        "ground_y": {"type": "integer", "minimum": 0, "maximum": 511},
+        "ground_tolerance": {"type": "integer", "minimum": 0, "maximum": 16}
+      }
+    },
+    "palette": {"type": "array", "minItems": 1, "maxItems": 253, "uniqueItems": true, "items": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"}},
+    "animation_profiles": {
+      "type": "object", "additionalProperties": false, "required": ["walk"],
+      "properties": {"walk": {"type": "string", "minLength": 1}}
+    },
+    "layers": {"type": "array", "minItems": 1, "maxItems": 128, "items": {"$ref": "#/$defs/layer"}},
+    "overrides": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "walk": {
+          "type": "object", "propertyNames": {"pattern": "^frame_[0-7]$"},
+          "additionalProperties": {
+            "type": "object", "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"},
+            "additionalProperties": {"$ref": "#/$defs/step"}
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "point": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "integer", "minimum": -4096, "maximum": 4096}},
+    "step": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"offset": {"$ref": "#/$defs/point"}, "pose": {"$ref": "#/$defs/id"}}
+    },
+    "layer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "source", "anchor", "z_index"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "source": {"type": "string", "minLength": 1},
+        "anchor": {"$ref": "#/$defs/point"},
+        "pivot": {"$ref": "#/$defs/point"},
+        "z_index": {"type": "integer", "minimum": -10000, "maximum": 10000},
+        "parent": {"$ref": "#/$defs/id"},
+        "track": {"$ref": "#/$defs/id"},
+        "phase": {"type": "integer", "minimum": 0, "maximum": 7},
+        "offset_scale": {"$ref": "#/$defs/point"},
+        "mirror": {"type": "boolean"},
+        "mask": {"type": "string", "minLength": 1},
+        "poses": {"type": "object", "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"}, "additionalProperties": {"type": "string", "minLength": 1}}
+      }
+    }
+  }
+}

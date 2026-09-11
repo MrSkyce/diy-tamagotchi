@@ -1,7 +1,8 @@
 # Handoff Codex — Générateur d’animations pixel art du Tamagotchi
 
 > Source documentaire du futur moteur, intégrée au dépôt le 9 septembre 2026.
-> Ce document décrit le travail à réaliser, pas une implémentation existante.
+> Ce document décrit le périmètre cible. L'implémentation en cours et ses limites
+> sont documentées dans [sprite-tool/README.md](sprite-tool/README.md).
 > Les [six références graphiques](design/README.md) sont conservées ; les anciens
 > essais de marche ont été retirés. Le firmware v0.7 reste le socle embarqué.
 >
@@ -9,6 +10,44 @@
 > [format de stockage actuel](ASSET_STORAGE.md) complètent ce cadrage : sprites
 > 112×112, écran 240×240, RGB565 little-endian compressé en RLE sur W25Q64.
 > Les exemples de configuration et d'export ci-dessous sont indicatifs.
+
+## Décision du 9 septembre 2026 — mouvement avant habillage
+
+**Inflexion choisie par l'utilisateur : mannequin articulé → habillage pixel art.**
+Cette décision prévaut sur les prescriptions contradictoires du cadrage initial
+ci-dessous, notamment le cycle limité à six frames et la construction du mouvement
+par simple translation de morceaux de sprites.
+
+- Les cycles rigides actuels sont jugés non convaincants et ne sont plus la
+  direction artistique retenue. Leurs tests restent des tests techniques.
+- Premier jalon : un mannequin volumétrique de dragon, sans détails identitaires,
+  sur **huit poses**, avec articulations visibles et aperçu en déplacement.
+- Le mouvement est résolu par un squelette à longueurs constantes, appuis fixés
+  dans le repère du sol, flexion des membres et mouvement du bassin. Les calculs
+  géométriques peuvent être continus ; le dessin final est arrondi sur la grille,
+  sans anticrénelage ni déformation des bitmaps de référence.
+- Le cycle sera partagé, les proportions et volumes seront propres aux morphologies.
+  Il ne s'agit pas d'appliquer des proportions humaines aux six mascottes.
+- Le mannequin doit être revu visuellement avant l'habillage d'une seule mascotte.
+  L'habillage utilise volumes, masques, poses dessinées et raccords explicites.
+  Une éventuelle IA peut proposer des assets en amont ; elle ne garantit ni les
+  contraintes ni la cohérence inter-frames et ne remplace pas leur validation.
+- Les six références approuvées restent intactes. Les nouvelles vues et les cycles
+  ne bénéficient pas de leur approbation par héritage.
+- L'outillage de validation, de traçabilité et d'export est conservé. Il accepte
+  désormais six ou huit frames, avec tests des exports sur fixture synthétique.
+  La marche et la référence graphique V3 sont approuvées séparément ; le
+  [cycle habillé sur rig](sprite-tool/RIGGED_WALK.md) corrigé et sa taille sont
+  maintenant approuvés. Ses 16 BMP sont intégrés au lecteur HOME ; la compilation
+  ESP32 est réussie, sans programmation ni validation TFT à ce stade.
+
+Référence méthodologique : [SLYNYRD — Human Walk Cycle](https://www.slynyrd.com/blog/2024/5/24/pixelblog-50-human-walk-cycle),
+construction d'un mannequin animé avant son habillage. Aucun pixel du tutoriel
+n'est repris. L'ancienne V2 utilisait déjà cette référence : les contraintes de
+longueur seules n'ont pas établi la qualité graphique. Le nouveau jalon porte
+explicitement sur les volumes et la lisibilité du mouvement avant tout habillage.
+
+Prototype et critères de revue : [sprite-tool/MOTION_STUDY.md](sprite-tool/MOTION_STUDY.md).
 
 ## 1. Contexte
 

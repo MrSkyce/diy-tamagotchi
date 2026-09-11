@@ -66,7 +66,8 @@ class BufferedFlashReader {
 }  // namespace
 
 bool TftAssetStore::begin(W25Q64Flash& flash) {
-  flash_ = &flash;
+  flash_ = nullptr;
+  imageSize_ = 0;
   loadedAsset_ = TftAssetId::INVALID;
   if (!flash.isExpectedDevice()) {
     error_ = "W25Q64 not detected";
@@ -96,16 +97,20 @@ bool TftAssetStore::begin(W25Q64Flash& flash) {
     error_ = "asset image size mismatch";
     return false;
   }
+  flash_ = &flash;  // Publish the device only after the entire header is valid.
   error_ = "none";
   return true;
 }
 
 bool TftAssetStore::load(TftAssetId assetId) {
-  if (assetId == loadedAsset_) return true;
   const uint16_t index = static_cast<uint16_t>(assetId);
   if (flash_ == nullptr || index >= TFT_ASSET_COUNT) {
     error_ = "invalid asset id";
     return false;
+  }
+  if (assetId == loadedAsset_) {
+    error_ = "none";
+    return true;
   }
 
   uint8_t entry[ENTRY_SIZE];

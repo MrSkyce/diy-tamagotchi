@@ -1,0 +1,42 @@
+# Diagonal pairs share phase; opposite pairs exchange roles after half a cycle.
+schema_version: 1
+id: quadruped
+animation: walk
+frames: 6
+duration_ms: 120
+tracks:
+  front_near:
+    - {pose: forward}
+    - {pose: forward}
+    - {pose: neutral}
+    - {pose: backward}
+    - {pose: backward}
+    - {pose: neutral}
+  front_far:
+    - {pose: backward}
+    - {pose: backward}
+    - {pose: neutral}
+    - {pose: forward}
+    - {pose: forward}
+    - {pose: neutral}
+  rear_near:
+    - {pose: backward}
+    - {pose: backward}
+    - {pose: neutral}
+    - {pose: forward}
+    - {pose: forward}
+    - {pose: neutral}
+  rear_far:
+    - {pose: forward}
+    - {pose: forward}
+    - {pose: neutral}
+    - {pose: backward}
+    - {pose: backward}
+    - {pose: neutral}
+  head:
+    - {offset: [0, 0]}
+    - {offset: [0, 0]}
+    - {offset: [0, 1]}
+    - {offset: [0, 0]}
+    - {offset: [0, 1]}
+    - {offset: [0, 0]}

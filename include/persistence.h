@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Arduino.h>
+#include <stdint.h>
 
 struct PetSaveData {
   uint8_t hunger;
@@ -16,8 +16,11 @@ struct PetSaveData {
   uint64_t ageMs;
   uint64_t stageStartedAgeMs;
   uint32_t rtcUnixTime;
+  uint8_t mascot;  // Stable species ID: legacy saves always restore the dragon.
 };
 
+enum class PetLoadStatus { Loaded, Missing, Invalid, Unavailable };
+PetLoadStatus readPetSave(PetSaveData& data);
 bool loadPetSave(PetSaveData& data);
 bool savePetSave(const PetSaveData& data);
 bool clearPetSave();

@@ -1,0 +1,35 @@
+{
+  "animation": "walk",
+  "duration_ms": 120,
+  "frames": 8,
+  "id": "approved_rig_walk",
+  "schema_version": 1,
+  "tracks": {
+    "poses": [
+      {
+        "pose": "pose_00"
+      },
+      {
+        "pose": "pose_01"
+      },
+      {
+        "pose": "pose_02"
+      },
+      {
+        "pose": "pose_03"
+      },
+      {
+        "pose": "pose_04"
+      },
+      {
+        "pose": "pose_05"
+      },
+      {
+        "pose": "pose_06"
+      },
+      {
+        "pose": "pose_07"
+      }
+    ]
+  }
+}

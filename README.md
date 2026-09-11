@@ -3,7 +3,7 @@
 Prototype de Tamagotchi DIY basé sur ESP32-C3, TFT IPS ZJY154S0800TG01
 1,54 pouce (ST7789, 240×240), trois boutons et buzzer passif.
 
-## V0.7 : firmware actuel
+## V0.8 : firmware actuel
 
 Le projet PlatformIO est compilable pour `esp32-c3-devkitm-1`, l'équivalent
 PlatformIO retenu pour la configuration Arduino validée `ESP32C3 Dev Module`.
@@ -19,10 +19,17 @@ bibliothèques Adafruit déclarées dans `platformio.ini`.
 
 ### Structure
 
-Le socle conserve le firmware v0.7 et ses 33 assets de production. Les essais
-de marche et leur diagnostic ont été retirés. Les [six références de mascottes](design/README.md)
-sont conservées pour construire le générateur hors ligne décrit dans
-[le cadrage du moteur](HANDOFF_CODEX_MOTEUR_ANIMATION_SPRITES.md).
+Le socle conserve les 33 anciens assets et les [six références de mascottes](design/README.md).
+Le [générateur hors ligne](sprite-tool/README.md) produit désormais un cycle de
+dragon habillé sur un squelette validé. Les huit poses et leur taille sont approuvées ;
+16 nouveaux BMP droite/gauche sont intégrés au lecteur HOME, à 120 ms par pose
+et 3 pixels de déplacement synchronisé. Le catalogue contient 129 images : les
+80 frames des cinq autres marches V4 validées y sont également intégrées.
+Le firmware et les outils d'assets compilent ; leur programmation et l'essai TFT
+restent à réaliser. Voir l'[état d'intégration](sprite-tool/FIRMWARE_INTEGRATION.md).
+Le choix de mascotte à la création et sa sauvegarde v8 sont intégrés ; les anciennes
+sauvegardes v7 conservent le dragon. Les états non illustrés des cinq nouvelles espèces
+utilisent temporairement leur propre pose immobile. Voir le [parcours de création](sprite-tool/CREATION_SELECTION.md).
 
 - `src/main.cpp` : comportement applicatif actuel.
 - `include/config.h` : pinout et configuration écran.

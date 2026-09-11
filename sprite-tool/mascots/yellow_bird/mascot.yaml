@@ -1,0 +1,58 @@
+# Real-input integration candidate. This frontal design is preserved exactly;
+# horizontal travel does not establish an approved anatomical side view.
+schema_version: 1
+id: yellow_bird
+canvas:
+  width: 112
+  height: 112
+  ground_y: 100
+palette:
+  - '#060E28'
+  - '#061129'
+  - '#10101C'
+  - '#296796'
+  - '#2ED5F5'
+  - '#4F372F'
+  - '#9E5D10'
+  - '#A812BD'
+  - '#B7AA18'
+  - '#D50CD5'
+  - '#E40FE3'
+  - '#F16603'
+  - '#F69A05'
+  - '#F9CF16'
+  - '#FBB305'
+  - '#FCF153'
+  - '#FDD951'
+  - '#FDEE12'
+  - '#FDEE14'
+  - '#FDF378'
+  - '#FDF481'
+  - '#FDFDFC'
+animation_profiles:
+  walk: ../../profiles/rigid_walk.yaml
+layers:
+  - id: far_leg
+    source: ../../prepared-layers/yellow_bird/far_leg.png
+    anchor: [0, 0]
+    track: far_leg
+    z_index: 5
+  - id: near_leg
+    source: ../../prepared-layers/yellow_bird/near_leg.png
+    anchor: [0, 0]
+    track: near_leg
+    z_index: 10
+  - id: far_wing
+    source: ../../prepared-layers/yellow_bird/far_wing.png
+    anchor: [0, 0]
+    track: far_arm
+    z_index: 15
+  - id: body
+    source: ../../prepared-layers/yellow_bird/body.png
+    anchor: [0, 0]
+    z_index: 20
+  - id: near_wing
+    source: ../../prepared-layers/yellow_bird/near_wing.png
+    anchor: [0, 0]
+    track: near_arm
+    z_index: 25
